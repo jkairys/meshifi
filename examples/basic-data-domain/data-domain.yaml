@@ -1,0 +1,14 @@
+apiVersion: meshifi.io/v1alpha1
+kind: DataDomain
+metadata:
+  name: example-domain
+  namespace: default
+spec:
+  description: "Example data domain for demonstration"
+  owner: "data-team@example.com"
+  tags:
+    - "example"
+    - "demo"
+  metadata:
+    version: "1.0.0"
+    createdBy: "meshifi-examples"
