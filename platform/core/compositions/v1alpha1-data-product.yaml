@@ -1,0 +1,73 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: data-product-composition
+spec:
+  compositeTypeRef:
+    apiVersion: meshifi.io/v1alpha1
+    kind: DataProduct
+  mode: Pipeline
+  pipeline:
+    - step: create-datasets
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |-
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: "{{ .observed.composite.resource.metadata.name }}-raw"
+              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: dataset-raw
+                gotemplating.fn.crossplane.io/ready: "True"
+              labels:
+                example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+            data:
+              id: "{{ .observed.composite.resource.spec.id }}"
+              name: "{{ .observed.composite.resource.spec.name }}"
+              description: "{{ .observed.composite.resource.spec.description }}"
+              owner: "{{ .observed.composite.resource.spec.owner }}"
+            ---
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: "{{ .observed.composite.resource.metadata.name }}-cleaned"
+              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: dataset-cleaned
+                gotemplating.fn.crossplane.io/ready: "True"
+              labels:
+                example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+            data:
+              id: "{{ .observed.composite.resource.spec.id }}"
+              name: "{{ .observed.composite.resource.spec.name }}"
+              description: "{{ .observed.composite.resource.spec.description }}"
+              owner: "{{ .observed.composite.resource.spec.owner }}"
+            ---
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: "{{ .observed.composite.resource.metadata.name }}-curated"
+              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: dataset-curated
+                gotemplating.fn.crossplane.io/ready: "True"
+              labels:
+                example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+            data:
+              id: "{{ .observed.composite.resource.spec.id }}"
+              name: "{{ .observed.composite.resource.spec.name }}"
+              description: "{{ .observed.composite.resource.spec.description }}"
+              owner: "{{ .observed.composite.resource.spec.owner }}"
+
+    - step: automatically-detect-readiness
+      functionRef:
+        name: crossplane-contrib-function-auto-ready

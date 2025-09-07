@@ -1,0 +1,80 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: dataproducts.meshifi.io
+spec:
+  scope: Namespaced
+  group: meshifi.io
+  names:
+    kind: DataProduct
+    plural: dataproducts
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: "ID of the data product, for example 'sales_data'"
+                name:
+                  type: string
+                  description: "Name of the data product, for example 'Sales Data'"
+                description:
+                  type: string
+                  description: "Description of the data product"
+                owner:
+                  type: string
+                  description: "Owner of the data product (email or team)"
+                datasets:
+                  type: object
+                  properties:
+                    raw:
+                      type: boolean
+                      default: false
+                      description: "Enable raw dataset feature for this data product"
+                    cleaned:
+                      type: boolean
+                      default: false
+                      description: "Enable cleaned dataset feature for this data product"
+                    curated:
+                      type: boolean
+                      default: false
+                      description: "Enable curated dataset feature for this data product"
+                  description: "Types of datasets to provision for this data product"
+              required:
+                - id
+                - name
+                - description
+                - owner
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+              description: "Status of the DataProduct"
+          required:
+            - spec

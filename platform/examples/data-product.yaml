@@ -1,0 +1,14 @@
+apiVersion: meshifi.io/v1alpha1
+kind: DataProduct
+metadata:
+  name: sales-data
+  namespace: default
+spec:
+  id: sales-data
+  name: Sales Data
+  description: "Example data product for demonstration"
+  owner: "data-team@example.com"
+  datasets:
+    raw: true
+    cleaned: true
+    curated: true
