@@ -4,39 +4,48 @@ This document explains the modular Taskfile structure used in the Meshifi projec
 
 ## Overview
 
-The project uses a split Taskfile approach where the main `Taskfile.yml` orchestrates specialized sub-task files, each focused on a specific aspect of the development environment.
+The project uses a modular Taskfile approach where separate taskfiles manage different aspects of the development environment and platform.
 
 ## File Structure
 
 ```
-├── Taskfile.yml                    # Main orchestrator
-├── Taskfile.dependencies.yml       # Dependency management
-├── Taskfile.kind.yml              # Kind cluster management
-├── Taskfile.crossplane.yml        # Crossplane management
-└── Taskfile.meshifi.yml           # Meshifi package management
+dev-environment/
+├── Taskfile.yaml                   # Main orchestrator
+├── dependencies/
+│   └── Taskfile.yaml              # Dependency management
+├── kind/
+│   ├── Taskfile.yaml              # Kind cluster management
+│   └── kind-config.yaml           # Kind cluster configuration
+└── crossplane/
+    └── Taskfile.yaml              # Crossplane management
+
+platform/
+└── Taskfile.yml                   # Meshifi platform management
 ```
 
 ## Taskfile Components
 
-### 1. Taskfile.yml (Main Orchestrator)
+### 1. dev-environment/Taskfile.yaml (Main Orchestrator)
 
-The main Taskfile provides high-level commands that delegate to specialized sub-task files:
+The main development environment Taskfile provides high-level commands that delegate to specialized sub-task files:
 
 **Key Features:**
 
 - Orchestrates the complete development environment setup
 - Provides convenient aliases for common operations
-- Maintains backward compatibility with existing workflows
-- Includes help commands for each sub-task file
+- Manages dependencies, cluster, and Crossplane installation
+- Includes cleanup and troubleshooting tasks
 
 **Main Tasks:**
 
-- `setup` - Complete environment setup
-- `dev` - Start development environment
+- `setup` - Complete environment setup (dependencies + cluster + Crossplane)
+- `install-deps` - Install all required dependencies
+- `create-cluster` - Create Kind cluster
+- `install-crossplane` - Install Crossplane
 - `clean` - Clean up everything
 - `help` - Show all available tasks
 
-### 2. Taskfile.dependencies.yml
+### 2. dev-environment/dependencies/Taskfile.yaml
 
 Manages all external dependencies required for the project.
 
@@ -58,7 +67,7 @@ Manages all external dependencies required for the project.
 - Crossplane CLI
 - Task runner
 
-### 3. Taskfile.kind.yml
+### 3. dev-environment/kind/Taskfile.yaml
 
 Handles Kind cluster lifecycle management.
 
@@ -76,7 +85,7 @@ Handles Kind cluster lifecycle management.
 - Clean deletion with container cleanup
 - Cluster status reporting
 
-### 4. Taskfile.crossplane.yml
+### 4. dev-environment/crossplane/Taskfile.yaml
 
 Manages Crossplane installation and configuration.
 
@@ -95,9 +104,9 @@ Manages Crossplane installation and configuration.
 - Health checking
 - Debugging support
 
-### 5. Taskfile.meshifi.yml
+### 5. platform/Taskfile.yml
 
-Handles Meshifi package installation and testing.
+Handles Meshifi platform installation and testing.
 
 **Tasks:**
 
@@ -118,17 +127,23 @@ Handles Meshifi package installation and testing.
 ### Complete Setup
 
 ```bash
-# Full environment setup
+# Full development environment setup
+cd dev-environment
 task setup
 
-# Start development
-task dev
+# Install Meshifi platform
+cd ../platform
+task install
+
+# Test with example
+kubectl apply -f examples/data-domain.yaml
 ```
 
 ### Individual Components
 
 ```bash
 # Install dependencies only
+cd dev-environment
 task install-deps
 
 # Create cluster only
@@ -137,40 +152,47 @@ task create-cluster
 # Install Crossplane only
 task install-crossplane
 
-# Install Meshifi package only
-task install-meshifi
+# Install Meshifi platform only
+cd ../platform
+task install
 ```
 
 ### Sub-task File Access
 
 ```bash
 # List dependency tasks
-task deps-help
+cd dev-environment/dependencies
+task --list
 
 # List Kind tasks
-task kind-help
+cd ../kind
+task --list
 
 # List Crossplane tasks
-task crossplane-help
+cd ../crossplane
+task --list
 
-# List Meshifi tasks
-task meshifi-help
+# List platform tasks
+cd ../../platform
+task --list
 ```
 
 ### Direct Sub-task File Usage
 
 ```bash
 # Use dependency taskfile directly
-task --taskfile Taskfile.dependencies.yml install
+cd dev-environment
+task --taskfile dependencies/Taskfile.yaml install
 
 # Use Kind taskfile directly
-task --taskfile Taskfile.kind.yml create
+task --taskfile kind/Taskfile.yaml create
 
 # Use Crossplane taskfile directly
-task --taskfile Taskfile.crossplane.yml status
+task --taskfile crossplane/Taskfile.yaml status
 
-# Use Meshifi taskfile directly
-task --taskfile Taskfile.meshifi.yml test
+# Use platform taskfile directly
+cd ../platform
+task --taskfile Taskfile.yml test
 ```
 
 ## Benefits of This Structure
@@ -207,11 +229,12 @@ task --taskfile Taskfile.meshifi.yml test
 
 ## Migration from Monolithic Taskfile
 
-The new structure maintains backward compatibility:
+The new structure provides better organization:
 
-- All original task names still work
-- Same command-line interface
-- Same functionality, better organization
+- Clear separation between development environment and platform concerns
+- Modular taskfiles for different components
+- Consistent command-line interface across components
+- Better maintainability and extensibility
 
 ## Adding New Tasks
 
@@ -223,9 +246,10 @@ The new structure maintains backward compatibility:
 
 ### To the Main Taskfile
 
-1. Add a delegation task that calls the sub-task file
+1. Add a delegation task that calls the appropriate sub-task file
 2. Update the help task to include the new task
 3. Consider if the task should be in a sub-task file instead
+4. Ensure the task follows the directory structure (dev-environment vs platform)
 
 ## Best Practices
 

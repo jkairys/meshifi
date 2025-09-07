@@ -14,92 +14,160 @@ Before starting development, ensure you have the following tools installed:
 
 ## Quick Start
 
-1. **Install dependencies and set up environment**:
+1. **Set up development environment**:
+
    ```bash
+   cd dev-environment
    task setup
    ```
 
-2. **Start development**:
+2. **Install Meshifi platform**:
+
    ```bash
-   task dev
+   cd ../platform
+   task install
+   ```
+
+3. **Test with example**:
+   ```bash
+   kubectl apply -f examples/data-domain.yaml
+   kubectl get datadomains
    ```
 
 ### Alternative Setup
 
-If you prefer to install dependencies separately:
+If you prefer to install components separately:
 
 1. **Install dependencies only**:
+
    ```bash
+   cd dev-environment
    task install-deps
    ```
 
-2. **Set up development environment**:
+2. **Create cluster only**:
+
    ```bash
-   task setup-dev
+   task create-cluster
+   ```
+
+3. **Install Crossplane only**:
+
+   ```bash
+   task install-crossplane
+   ```
+
+4. **Install Meshifi platform**:
+   ```bash
+   cd ../platform
+   task install
    ```
 
 ## Available Tasks
 
-The project uses Task for managing development workflows. Run `task --list` to see all available tasks.
+The project uses a modular Task structure with separate taskfiles for different concerns.
 
-### Common Development Tasks
+### Development Environment Tasks (dev-environment/)
 
-- `task setup` - Complete environment setup
-- `task dev` - Start development environment
+Run these from the `dev-environment/` directory:
+
+**Main Setup Tasks:**
+
+- `task setup` - Complete environment setup (dependencies + cluster + Crossplane)
+- `task install-deps` - Install all required dependencies
+- `task create-cluster` - Create Kind cluster
+- `task install-crossplane` - Install Crossplane
+- `task clean` - Clean up everything
+
+**Individual Component Tasks:**
+
 - `task cluster-info` - Show cluster information
 - `task crossplane-status` - Check Crossplane status
 - `task logs` - Show Crossplane logs
-- `task clean` - Clean up everything
+- `task port-forward` - Port forward Crossplane API server
 
-### Cluster Management
+### Platform Tasks (platform/)
 
-- `task create-cluster` - Create Kind cluster
-- `task delete-cluster` - Delete Kind cluster
-- `task cluster-info` - Show cluster information
+Run these from the `platform/` directory:
 
-### Crossplane Management
-
-- `task install-crossplane` - Install Crossplane
-- `task uninstall-crossplane` - Uninstall Crossplane
-- `task crossplane-status` - Check Crossplane status
+- `task install` - Install Meshifi core package
+- `task uninstall` - Uninstall Meshifi package
+- `task status` - Check package status
+- `task test` - Test with example resources
 
 ## Project Structure
 
 ```
 meshifi/
-├── packages/
-│   ├── core/           # Core Crossplane package
-│   ├── providers/      # Infrastructure providers
-│   └── extensions/     # Data product extensions
-├── examples/           # Example configurations
-├── docs/              # Documentation
-├── Taskfile.yml       # Task definitions
-└── kind-config.yaml   # Kind cluster configuration
+├── dev-environment/          # Development environment setup
+│   ├── dependencies/         # Dependency management tasks
+│   │   └── Taskfile.yaml    # Install Docker, Kind, kubectl, Helm, etc.
+│   ├── kind/                # Kind cluster management
+│   │   ├── Taskfile.yaml    # Create/delete Kind clusters
+│   │   └── kind-config.yaml # Kind cluster configuration
+│   ├── crossplane/          # Crossplane installation tasks
+│   │   └── Taskfile.yaml    # Install/manage Crossplane
+│   └── Taskfile.yaml        # Main dev environment orchestrator
+├── platform/                # Meshifi platform components
+│   ├── core/                # Core Crossplane package
+│   │   ├── xrd.yaml         # CompositeResourceDefinition
+│   │   ├── composition.yaml # Crossplane composition
+│   │   └── fn.yaml          # Function definitions
+│   ├── examples/            # Example configurations
+│   │   ├── data-domain.yaml # Example data domain
+│   │   └── README.md        # Example documentation
+│   └── Taskfile.yml         # Platform management tasks
+├── docs/                    # Documentation
+│   ├── DEVELOPMENT.md       # This file
+│   └── TASKFILE_STRUCTURE.md # Task structure documentation
+└── README.md               # Main project documentation
 ```
 
 ## Development Workflow
 
-1. **Start the development environment**:
+1. **Set up the development environment**:
+
    ```bash
-   task dev
+   cd dev-environment
+   task setup
    ```
 
-2. **Check cluster status**:
+2. **Install the Meshifi platform**:
+
    ```bash
+   cd ../platform
+   task install
+   ```
+
+3. **Check cluster status**:
+
+   ```bash
+   cd ../dev-environment
    task cluster-info
    ```
 
-3. **Monitor Crossplane**:
+4. **Monitor Crossplane**:
+
    ```bash
    task crossplane-status
    ```
 
-4. **View logs**:
+5. **Test with example**:
+
    ```bash
+   cd ../platform
+   kubectl apply -f examples/data-domain.yaml
+   kubectl get datadomains
+   ```
+
+6. **View logs**:
+
+   ```bash
+   cd ../dev-environment
    task logs
    ```
 
-5. **Clean up when done**:
+7. **Clean up when done**:
    ```bash
    task clean
    ```
@@ -108,48 +176,53 @@ meshifi/
 
 ### Core Package Development
 
-1. Create new CRDs in `packages/core/crds/`
-2. Implement controllers in `packages/core/controllers/`
-3. Test with the development cluster
-4. Update documentation
+1. Create new CRDs in `platform/core/`
+2. Update compositions in `platform/core/composition.yaml`
+3. Add function definitions in `platform/core/fn.yaml`
+4. Test with the development cluster
+5. Update documentation
 
-### Provider Development
+### Example Development
 
-1. Create provider directory in `packages/providers/`
-2. Add provider configurations
-3. Create resource compositions
-4. Test with example configurations
+1. Create new examples in `platform/examples/`
+2. Add YAML manifests for new resource types
+3. Update `platform/examples/README.md`
+4. Test examples with the development cluster
 
-### Extension Development
+### Platform Extensions
 
-1. Create extension directory in `packages/extensions/`
-2. Implement Crossplane package
-3. Add to examples
-4. Update documentation
+1. Create new composition files in `platform/core/`
+2. Add new function definitions as needed
+3. Create example configurations
+4. Update platform taskfile if needed
 
 ## Troubleshooting
 
 ### Common Issues
 
 **Kind cluster creation fails**:
+
 - Ensure Docker is running
 - Check available disk space
 - Try deleting existing clusters: `task delete-cluster`
 
 **Crossplane installation fails**:
+
 - Check cluster connectivity: `task cluster-info`
 - Verify Helm is installed: `helm version`
 - Check Crossplane logs: `task logs`
 
 **Port conflicts**:
+
 - Check if ports 80, 443, or 30000 are in use
 - Modify `kind-config.yaml` to use different ports
 
 ### Getting Help
 
-- Check the logs: `task logs`
-- Verify cluster status: `task cluster-info`
-- Review Crossplane status: `task crossplane-status`
+- Check the logs: `cd dev-environment && task logs`
+- Verify cluster status: `cd dev-environment && task cluster-info`
+- Review Crossplane status: `cd dev-environment && task crossplane-status`
+- Check platform status: `cd platform && task status`
 
 ## Contributing
 

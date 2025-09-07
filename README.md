@@ -1,4 +1,5 @@
 # meshifi
+
 a data mesh abstraction for humans
 
 # Meshifi
@@ -17,32 +18,36 @@ Meshifi aims to:
 ## Architecture Overview
 
 - **Domain Model:**
-	- Core Crossplane package defines custom resources for logical data domains, products, and their metadata.
+  - Core Crossplane package defines custom resources for logical data domains, products, and their metadata.
 - **Infrastructure Providers:**
-	- Crossplane providers manage cloud and on-prem infrastructure, enabling declarative provisioning of data product dependencies.
+  - Crossplane providers manage cloud and on-prem infrastructure, enabling declarative provisioning of data product dependencies.
 - **Extensions:**
-	- Integrations for tools like DBT (for data modeling) and Fivetran (for data ingestion) are delivered as Crossplane packages or similar extensions.
+  - Integrations for tools like DBT (for data modeling) and Fivetran (for data ingestion) are delivered as Crossplane packages or similar extensions.
 - **Service Implementation:**
-	- All services and capabilities are implemented as Crossplane packages or compatible Kubernetes-native controllers.
+  - All services and capabilities are implemented as Crossplane packages or compatible Kubernetes-native controllers.
 
 ## Roadmap
 
 ### Milestone 1: Core Platform
+
 - Define and implement the core domain model as a Crossplane package
 - Basic CRDs for data domains, data products, and product metadata
 - Documentation and examples for deploying the core package
 
 ### Milestone 2: Infrastructure Integration
+
 - Integrate Crossplane providers for major cloud platforms (AWS, GCP, Azure)
 - Enable declarative provisioning of data infrastructure (databases, storage, compute)
 - Example blueprints for common data product infrastructure
 
 ### Milestone 3: Data Product Extensions
+
 - DBT extension for data modeling as a managed resource
 - Fivetran extension for data ingestion pipelines
 - Framework for adding additional data product capabilities
 
 ### Milestone 4: Ecosystem & Usability
+
 - CLI and UI for managing data mesh resources
 - Templates and best practices for data product teams
 - Community-contributed extensions and providers
@@ -51,38 +56,89 @@ Meshifi aims to:
 
 > **Note:** Meshifi is in early development. Please see the roadmap for planned features and contribute via issues or pull requests!
 
-### Quick Start
+### Golden Path - Complete Setup
+
+Follow these steps to get a fully functional Meshifi development environment:
 
 1. **Install dependencies and set up environment**:
+
    ```bash
+   cd dev-environment
    task setup
    ```
 
-2. **Start development**:
+   This will:
+
+   - Install all required dependencies (Docker, Kind, kubectl, Helm, Crossplane CLI)
+   - Create a Kind cluster named `meshifi-dev`
+   - Install Crossplane v2.0.2
+
+2. **Install the Meshifi composition and example**:
+
    ```bash
-   task dev
+   cd ../platform
+   task install
+   ```
+
+   This will:
+
+   - Install the Meshifi core package (CRDs and compositions)
+   - Set up the data domain resource definitions
+
+3. **Test with the example**:
+   ```bash
+   kubectl apply -f examples/data-domain.yaml
+   kubectl get datadomains
    ```
 
 ### Alternative Setup
 
-If you prefer to install dependencies separately:
+If you prefer to install components separately:
 
 1. **Install dependencies only**:
+
    ```bash
+   cd dev-environment
    task install-deps
    ```
 
-2. **Set up development environment**:
+2. **Create cluster only**:
+
    ```bash
-   task setup-dev
+   task create-cluster
    ```
 
-### Manual Setup
+3. **Install Crossplane only**:
 
-1. Install Kubernetes and Crossplane in your cluster
-2. Deploy the Meshifi core package
-3. Define your first data domain and data product using the provided CRDs
-4. Add infrastructure and data product extensions as needed
+   ```bash
+   task install-crossplane
+   ```
+
+4. **Install Meshifi platform**:
+   ```bash
+   cd ../platform
+   task install
+   ```
+
+### Project Structure
+
+```
+meshifi/
+├── dev-environment/          # Development environment setup
+│   ├── dependencies/         # Dependency management tasks
+│   ├── kind/                # Kind cluster management
+│   ├── crossplane/          # Crossplane installation tasks
+│   └── Taskfile.yaml        # Main dev environment orchestrator
+├── platform/                # Meshifi platform components
+│   ├── core/                # Core Crossplane package
+│   │   ├── xrd.yaml         # CompositeResourceDefinition
+│   │   ├── composition.yaml # Crossplane composition
+│   │   └── fn.yaml          # Function definitions
+│   ├── examples/            # Example configurations
+│   └── Taskfile.yml         # Platform management tasks
+├── docs/                    # Documentation
+└── README.md               # This file
+```
 
 ### Development
 
@@ -90,8 +146,8 @@ For detailed development instructions, see [docs/DEVELOPMENT.md](docs/DEVELOPMEN
 
 ## Contributing
 
-Contributions are welcome! Please open issues for feature requests, bugs, or questions. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines (coming soon).
+Contributions are welcome! Please open issues for feature requests, bugs, or questions.
 
 ## License
 
-Meshifi is [MIT licensed](LICENSE).
+Meshifi is open source. See the repository for license information.
