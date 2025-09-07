@@ -1,0 +1,138 @@
+version: "3"
+
+vars:
+  CLUSTER_NAME: meshifi-dev
+  KIND_VERSION: v0.20.0
+  CROSSPLANE_VERSION: v2.0.2
+  KUBECTL_VERSION: v1.28.0
+
+includes:
+  dependencies:
+    taskfile: dependencies/Taskfile.yaml
+    dir: dependencies
+  kind:
+    taskfile: kind/Taskfile.yaml
+    dir: kind
+  crossplane:
+    taskfile: crossplane/Taskfile.yaml
+    dir: crossplane
+  # meshifi: ./dev-environment/meshifi/Taskfile.yaml
+
+tasks:
+  # Main Setup Tasks
+  setup:
+    desc: "Set up the development environment"
+    deps: [install-deps, create-cluster, install-crossplane]
+    summary: |
+      Complete development environment setup including:
+      - Dependency installation
+      - Kind cluster creation
+      - Crossplane installation
+      - Basic configuration
+
+  # Dependency Management (imported from dependencies taskfile)
+  install-deps:
+    desc: "Install all required dependencies"
+    cmds:
+      - task: dependencies:install
+    summary: "Install Docker, Kind, kubectl, Helm, and Task"
+
+  check-deps:
+    desc: "Check if required dependencies are installed"
+    cmds:
+      - task: dependencies:check
+    summary: "Verify all required tools are available"
+
+  # Kind Cluster Management (imported from kind taskfile)
+  create-cluster:
+    desc: "Create a Kind cluster for development"
+    cmds:
+      - task: kind:create
+    summary: "Create or verify Kind cluster exists"
+
+  delete-cluster:
+    desc: "Delete the Kind cluster"
+    cmds:
+      - task: kind:delete
+
+  cluster-info:
+    desc: "Show cluster information"
+    cmds:
+      - task: kind:info
+
+  kubeconfig:
+    desc: "Show kubeconfig for the Kind cluster"
+    cmds:
+      - task: kind:kubeconfig
+
+  # Crossplane Management (imported from crossplane taskfile)
+  install-crossplane:
+    desc: "Install Crossplane on the Kind cluster"
+    cmds:
+      - task: crossplane:install
+    summary: "Install Crossplane using Helm if not already installed"
+
+  uninstall-crossplane:
+    desc: "Uninstall Crossplane from the cluster"
+    cmds:
+      - task: crossplane:uninstall
+
+  reinstall-crossplane:
+    desc: "Clean reinstall Crossplane (fixes CRD version conflicts)"
+    cmds:
+      - task: crossplane:uninstall
+      - task: crossplane:clean-crds
+      - task: crossplane:install
+    summary: "Clean uninstall, CRD cleanup, and fresh install of Crossplane"
+
+  crossplane-status:
+    desc: "Check Crossplane status"
+    cmds:
+      - task: crossplane:status
+
+  logs:
+    desc: "Show Crossplane logs"
+    cmds:
+      - task: crossplane:logs
+
+  port-forward:
+    desc: "Port forward Crossplane API server (for debugging)"
+    cmds:
+      - task: crossplane:port-forward
+
+  # Cleanup
+  clean:
+    desc: "Clean up development environment"
+    cmds:
+      - task: crossplane:uninstall
+      - task: kind:delete
+    summary: "Remove Meshifi package, Crossplane, and cluster"
+
+  force-clean:
+    desc: "Force clean up everything including stuck containers"
+    cmds:
+      - |
+        echo "🧹 Force cleaning all Meshifi-related resources..."
+
+        # Force remove any containers with meshifi in the name
+        echo "🗑️  Force removing all containers with 'meshifi' in the name..."
+        docker ps -a --format "table {{.Names}}" | grep -i meshifi | xargs -r docker rm -f 2>/dev/null || true
+
+        # Force remove any Kind clusters
+        if command -v kind &> /dev/null; then
+          echo "🗑️  Force removing all Kind clusters..."
+          kind get clusters | grep -v "No kind clusters found" | xargs -r -I {} kind delete cluster --name {} 2>/dev/null || true
+        fi
+
+        # Clean up any remaining Docker networks
+        echo "🧹 Cleaning up Docker networks..."
+        docker network ls --format "table {{.Name}}" | grep -E "(kind|meshifi)" | xargs -r docker network rm 2>/dev/null || true
+
+        echo "✅ Force clean completed"
+    summary: "Aggressively remove all Meshifi-related Docker resources"
+
+  # Help and Information
+  help:
+    desc: "Show available tasks"
+    cmds:
+      - task --list

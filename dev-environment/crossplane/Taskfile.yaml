@@ -1,0 +1,157 @@
+version: "3"
+
+vars:
+  CROSSPLANE_VERSION: v2.0.2
+
+tasks:
+  # Crossplane Installation
+  install:
+    desc: "Install Crossplane on the Kind cluster"
+    silent: true
+    cmds:
+      - |
+        echo "🚀 Checking Crossplane installation..."
+
+        # Check if Crossplane is already installed
+        if helm list -n crossplane-system | grep -q crossplane; then
+          echo "✅ Crossplane is already installed"
+        else
+          echo "🔧 Installing Crossplane..."
+          helm repo add crossplane-stable https://charts.crossplane.io/stable
+          helm repo update
+          helm install crossplane crossplane-stable/crossplane \
+            --namespace crossplane-system \
+            --create-namespace \
+            --version {{.CROSSPLANE_VERSION}}
+        fi
+
+        echo "⏳ Waiting for Crossplane to be ready..."
+        kubectl wait --for=condition=Available --timeout=300s deployment/crossplane -n crossplane-system
+        echo "✅ Crossplane is ready"
+    summary: "Install Crossplane using Helm if not already installed"
+
+  uninstall:
+    desc: "Uninstall Crossplane from the cluster"
+    silent: true
+    cmds:
+      - |
+        echo "🗑️  Uninstalling Crossplane..."
+
+        # Check if cluster exists and is accessible
+        if ! kubectl cluster-info &> /dev/null; then
+          echo "ℹ️  No accessible Kubernetes cluster found. Skipping Crossplane uninstall."
+          exit 0
+        fi
+
+        # Check if Crossplane is installed
+        if ! helm list -n crossplane-system | grep -q crossplane; then
+          echo "ℹ️  Crossplane is not installed. Skipping uninstall."
+        else
+          helm uninstall crossplane -n crossplane-system
+        fi
+
+        # Try to delete namespace if it exists
+        if kubectl get namespace crossplane-system &> /dev/null; then
+          kubectl delete namespace crossplane-system
+        else
+          echo "ℹ️  crossplane-system namespace does not exist."
+        fi
+      - task: clean-crds
+      - echo "✅ Crossplane uninstall completed"
+
+  clean-crds:
+    desc: "Clean up problematic Crossplane CRDs that may cause version conflicts"
+    silent: true
+    cmds:
+      - |
+        echo "🧹 Cleaning up problematic Crossplane CRDs..."
+
+        # Check if cluster exists and is accessible
+        if ! kubectl cluster-info &> /dev/null; then
+          echo "ℹ️  No accessible Kubernetes cluster found. Skipping CRD cleanup."
+          exit 0
+        fi
+
+        # Remove problematic CRDs that might have version conflicts
+        echo "🗑️  Removing environmentconfigs CRD..."
+        kubectl delete crd environmentconfigs.apiextensions.crossplane.io --ignore-not-found=true
+
+        # Remove other Crossplane CRDs that might cause conflicts
+        echo "🗑️  Removing other Crossplane CRDs..."
+        kubectl delete crd compositeresourcedefinitions.apiextensions.crossplane.io --ignore-not-found=true
+        kubectl delete crd compositionrevisions.apiextensions.crossplane.io --ignore-not-found=true
+        kubectl delete crd compositions.apiextensions.crossplane.io --ignore-not-found=true
+        kubectl delete crd configurationrevisions.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd configurations.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd controllerconfigs.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd deploymentruntimeconfigs.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd functionrevisions.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd functions.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd locks.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd providerrevisions.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd providers.pkg.crossplane.io --ignore-not-found=true
+        kubectl delete crd storeconfigs.secrets.crossplane.io --ignore-not-found=true
+        kubectl delete crd usages.apiextensions.crossplane.io --ignore-not-found=true
+
+        echo "✅ CRD cleanup completed"
+
+  status:
+    desc: "Check Crossplane status"
+    silent: true
+    cmds:
+      - kubectl get pods -n crossplane-system
+      - kubectl get crd | grep crossplane
+
+  # Crossplane Dependencies
+  install-dependencies:
+    desc: "Install required Crossplane dependencies"
+    silent: true
+    deps: [install]
+    cmds:
+      - |
+        echo "📦 Checking Crossplane dependencies..."
+
+        # Note: function-go-templating is not available in the registry
+        # We'll use basic compositions without functions for now
+        echo "ℹ️  Skipping function-go-templating (not available in registry)"
+
+        # Check if provider-kubernetes is already installed
+        if kubectl get provider.pkg.crossplane.io/provider-kubernetes &> /dev/null; then
+          echo "✅ provider-kubernetes is already installed"
+        else
+          echo "🔧 Installing provider-kubernetes..."
+          echo "apiVersion: pkg.crossplane.io/v1" > /tmp/provider-kubernetes.yaml
+          echo "kind: Provider" >> /tmp/provider-kubernetes.yaml
+          echo "metadata:" >> /tmp/provider-kubernetes.yaml
+          echo "  name: provider-kubernetes" >> /tmp/provider-kubernetes.yaml
+          echo "spec:" >> /tmp/provider-kubernetes.yaml
+          echo "  package: xpkg.upbound.io/crossplane-contrib/provider-kubernetes:v0.9.0" >> /tmp/provider-kubernetes.yaml
+          kubectl apply -f /tmp/provider-kubernetes.yaml
+          rm -f /tmp/provider-kubernetes.yaml
+        fi
+
+        echo "⏳ Waiting for dependencies to be ready..."
+        kubectl wait --for=condition=Healthy --timeout=300s provider.pkg.crossplane.io/provider-kubernetes
+
+        echo "✅ Dependencies are ready"
+    summary: "Install required Crossplane functions and providers if not already installed"
+
+  # Utility Tasks
+  logs:
+    desc: "Show Crossplane logs"
+    silent: true
+    cmds:
+      - kubectl logs -n crossplane-system -l app=crossplane --tail=50
+
+  port-forward:
+    desc: "Port forward Crossplane API server (for debugging)"
+    silent: true
+    cmds:
+      - kubectl port-forward -n crossplane-system svc/crossplane 8080:8080
+
+  # Help
+  help:
+    desc: "Show available Crossplane tasks"
+    silent: true
+    cmds:
+      - task --list

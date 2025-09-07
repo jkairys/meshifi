@@ -1,0 +1,147 @@
+version: "3"
+
+tasks:
+  # Meshifi Package Installation
+  install:
+    desc: "Install the Meshifi core package"
+    cmds:
+      - |
+        echo "📦 Checking Meshifi core package installation..."
+
+        # Note: We'll install the package components directly instead of using a package definition
+        echo "ℹ️  Installing Meshifi core package components directly..."
+
+        # Apply the CRDs (idempotent)
+        echo "📋 Applying CompositeResourceDefinitions..."
+        kubectl apply -f packages/core/definition/
+
+        # Apply the compositions (idempotent)
+        echo "📋 Applying Compositions..."
+        kubectl apply -f packages/core/composition/
+
+        echo "⏳ Waiting for package to be ready..."
+        kubectl wait --for=condition=Healthy --timeout=300s provider.pkg.crossplane.io/provider-kubernetes
+
+        echo "✅ Meshifi core package is ready"
+    summary: "Install the Meshifi core Crossplane package if not already installed"
+
+  uninstall:
+    desc: "Uninstall the Meshifi core package"
+    cmds:
+      - |
+        echo "🗑️  Uninstalling Meshifi core package..."
+
+        # Delete compositions
+        echo "🗑️  Removing compositions..."
+        kubectl delete -f packages/core/composition/ --ignore-not-found=true
+
+        # Delete CRDs
+        echo "🗑️  Removing CompositeResourceDefinitions..."
+        kubectl delete -f packages/core/definition/ --ignore-not-found=true
+
+        # Delete the package
+        echo "🗑️  Removing package..."
+        kubectl delete package meshifi-core --ignore-not-found=true
+
+        echo "✅ Meshifi core package uninstalled"
+    summary: "Remove the Meshifi core package from the cluster"
+
+  status:
+    desc: "Check Meshifi package status"
+    cmds:
+      - echo "📋 Package status:"
+      - kubectl get packages
+      - echo ""
+      - echo "📋 CompositeResourceDefinitions:"
+      - kubectl get xrd | grep meshifi
+      - echo ""
+      - echo "📋 Compositions:"
+      - kubectl get compositions | grep meshifi
+      - echo ""
+      - echo "📋 Dependencies:"
+      - kubectl get functions,providers | grep -E "(function-go-templating|provider-kubernetes)"
+
+  # Testing
+  test:
+    desc: "Test the Meshifi package with example resources"
+    deps: [install]
+    cmds:
+      - |
+        echo "🧪 Testing Meshifi package with example resources..."
+
+        # Apply example data domain
+        echo "📋 Creating example DataDomain..."
+        kubectl apply -f examples/basic-data-domain/data-domain.yaml
+
+        # Apply example data product
+        echo "📋 Creating example DataProduct..."
+        kubectl apply -f examples/basic-data-domain/data-product.yaml
+
+        # Wait for resources to be ready
+        echo "⏳ Waiting for resources to be ready..."
+        kubectl wait --for=condition=Ready --timeout=60s datadomainclaim/example-domain
+        kubectl wait --for=condition=Ready --timeout=60s dataproductclaim/example-product
+
+        # Show status
+        echo "✅ Test resources created successfully!"
+        echo ""
+        echo "📋 DataDomain status:"
+        kubectl get datadomainclaim example-domain -o yaml
+        echo ""
+        echo "📋 DataProduct status:"
+        kubectl get dataproductclaim example-product -o yaml
+        echo ""
+        echo "📋 Created ConfigMaps:"
+        kubectl get configmaps -l meshifi.io/type
+    summary: "Test the package by creating example resources"
+
+  cleanup-test:
+    desc: "Clean up test resources"
+    cmds:
+      - |
+        echo "🧹 Cleaning up test resources..."
+        kubectl delete -f examples/basic-data-domain/ --ignore-not-found=true
+        echo "✅ Test resources cleaned up"
+    summary: "Remove test resources from the cluster"
+
+  # Help
+  help:
+    desc: "Show available Meshifi package tasks"
+    cmds:
+      - task --list
+
+  # Development Workflow
+  dev:
+    desc: "Start development environment"
+    deps: [setup]
+    cmds:
+      - echo "🎉 Development environment is ready!"
+      - echo "📋 Available commands:"
+      - echo "   task cluster-info      - Show cluster information"
+      - echo "   task crossplane-status - Check Crossplane status"
+      - echo "   task package-status    - Check Meshifi package status"
+      - echo "   task logs             - Show Crossplane logs"
+      - echo "   task clean            - Clean up everything"
+      - echo ""
+      - echo "🧪 Test the Meshifi package:"
+      - echo "   kubectl apply -f examples/basic-data-domain/data-domain.yaml"
+      - echo "   kubectl apply -f examples/basic-data-domain/data-product.yaml"
+
+  setup-dev:
+    desc: "Complete development environment setup (replaces setup-dev.sh)"
+    deps: [setup]
+    cmds:
+      - echo "🚀 Setting up Meshifi development environment..."
+      - echo "📋 Running complete setup..."
+      - task: setup
+      - echo ""
+      - echo "🎉 Development environment is ready!"
+      - echo ""
+      - echo "📋 Available commands:"
+      - echo "  task dev              - Start development"
+      - echo "  task cluster-info     - Show cluster information"
+      - echo "  task crossplane-status - Check Crossplane status"
+      - echo "  task logs             - Show Crossplane logs"
+      - echo "  task clean            - Clean up everything"
+      - echo ""
+      - echo "📖 For more information, see docs/DEVELOPMENT.md"

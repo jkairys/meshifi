@@ -51,10 +51,42 @@ Meshifi aims to:
 
 > **Note:** Meshifi is in early development. Please see the roadmap for planned features and contribute via issues or pull requests!
 
+### Quick Start
+
+1. **Install dependencies and set up environment**:
+   ```bash
+   task setup
+   ```
+
+2. **Start development**:
+   ```bash
+   task dev
+   ```
+
+### Alternative Setup
+
+If you prefer to install dependencies separately:
+
+1. **Install dependencies only**:
+   ```bash
+   task install-deps
+   ```
+
+2. **Set up development environment**:
+   ```bash
+   task setup-dev
+   ```
+
+### Manual Setup
+
 1. Install Kubernetes and Crossplane in your cluster
 2. Deploy the Meshifi core package
 3. Define your first data domain and data product using the provided CRDs
 4. Add infrastructure and data product extensions as needed
+
+### Development
+
+For detailed development instructions, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## Contributing
 

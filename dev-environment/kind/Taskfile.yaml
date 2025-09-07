@@ -1,0 +1,79 @@
+version: '3'
+
+vars:
+  CLUSTER_NAME: meshifi-dev
+
+tasks:
+  # Kind Cluster Management
+  create:
+    desc: "Create a Kind cluster for development"
+    cmds:
+      - task: check-kind
+      - |
+        if kind get clusters | grep -q "{{.CLUSTER_NAME}}"; then
+          echo "✅ Kind cluster '{{.CLUSTER_NAME}}' already exists"
+        else
+          echo "🚀 Creating Kind cluster '{{.CLUSTER_NAME}}'..."
+          kind create cluster --name {{.CLUSTER_NAME}} --config=./kind-config.yaml
+          echo "✅ Kind cluster created successfully"
+        fi
+    summary: "Create or verify Kind cluster exists"
+
+  delete:
+    desc: "Delete the Kind cluster"
+    cmds:
+      - |
+        # Check if Kind is installed
+        if ! command -v kind &> /dev/null; then
+          echo "ℹ️  Kind is not installed. Nothing to delete."
+          exit 0
+        fi
+        
+        if kind get clusters | grep -q "{{.CLUSTER_NAME}}"; then
+          echo "🗑️  Deleting Kind cluster '{{.CLUSTER_NAME}}'..."
+          kind delete cluster --name {{.CLUSTER_NAME}}
+          echo "✅ Kind cluster deleted"
+        else
+          echo "ℹ️  Kind cluster '{{.CLUSTER_NAME}}' does not exist"
+        fi
+        
+        # Clean up any remaining Docker containers with the cluster name
+        echo "🧹 Cleaning up any remaining Docker containers..."
+        if docker ps -a --format "table {{.Names}}" | grep -q "{{.CLUSTER_NAME}}"; then
+          echo "🗑️  Removing remaining containers for cluster '{{.CLUSTER_NAME}}'..."
+          docker rm -f $(docker ps -a --format "table {{.Names}}" | grep "{{.CLUSTER_NAME}}" | tr -d ' ') 2>/dev/null || true
+          echo "✅ Remaining containers cleaned up"
+        else
+          echo "ℹ️  No remaining containers found"
+        fi
+
+  info:
+    desc: "Show cluster information"
+    cmds:
+      - kubectl cluster-info
+      - kubectl get nodes
+      - kubectl get pods --all-namespaces
+
+  kubeconfig:
+    desc: "Show kubeconfig for the Kind cluster"
+    cmds:
+      - kind get kubeconfig --name {{.CLUSTER_NAME}}
+
+  check-kind:
+    desc: "Check if Kind is installed"
+    cmds:
+      - |
+        if ! command -v kind &> /dev/null; then
+          echo "❌ Kind is not installed. Please install it first:"
+          echo "   brew install kind"
+          echo "   or visit: https://kind.sigs.k8s.io/docs/user/quick-start/#installation"
+          exit 1
+        else
+          echo "✅ Kind is installed: $(kind version)"
+        fi
+
+  # Help
+  help:
+    desc: "Show available Kind cluster tasks"
+    cmds:
+      - task --taskfile ./taskfiles/Taskfile.kind.yml --list
