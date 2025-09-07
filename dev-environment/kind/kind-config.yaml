@@ -20,8 +20,6 @@ nodes:
   - containerPort: 30000
     hostPort: 30000
     protocol: TCP
-- role: worker
-- role: worker
 networking:
   apiServerAddress: "127.0.0.1"
   apiServerPort: 6443

@@ -1,0 +1,71 @@
+apiVersion: apiextensions.crossplane.io/v2
+kind: CompositeResourceDefinition
+metadata:
+  name: datadomains.meshifi.io
+spec:
+  scope: Namespaced
+  group: meshifi.io
+  names:
+    kind: DataDomain
+    plural: datadomains
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                description:
+                  type: string
+                  description: "Description of the data domain"
+                owner:
+                  type: string
+                  description: "Owner of the data domain (email or team)"
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: "Tags associated with the data domain"
+                metadata:
+                  type: object
+                  properties:
+                    version:
+                      type: string
+                      description: "Version of the data domain"
+                    createdBy:
+                      type: string
+                      description: "Who created this data domain"
+                  description: "Additional metadata for the data domain"
+              required:
+                - description
+                - owner
+            status:
+              type: object
+              properties:
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+              description: "Status of the DataDomain"
+          required:
+            - spec
