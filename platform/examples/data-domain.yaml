@@ -3,12 +3,8 @@ kind: DataDomain
 metadata:
   name: example-domain
   namespace: default
+  labels:
+    meshifi.io/data-domain: example-domain
 spec:
   description: "Example data domain for demonstration"
   owner: "data-team@example.com"
-  tags:
-    - "example"
-    - "demo"
-  metadata:
-    version: "1.0.0"
-    createdBy: "meshifi-examples"

@@ -25,21 +25,6 @@ spec:
                 owner:
                   type: string
                   description: "Owner of the data domain (email or team)"
-                tags:
-                  type: array
-                  items:
-                    type: string
-                  description: "Tags associated with the data domain"
-                metadata:
-                  type: object
-                  properties:
-                    version:
-                      type: string
-                      description: "Version of the data domain"
-                    createdBy:
-                      type: string
-                      description: "Who created this data domain"
-                  description: "Additional metadata for the data domain"
               required:
                 - description
                 - owner

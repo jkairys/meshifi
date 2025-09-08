@@ -20,12 +20,13 @@ spec:
               into: DataDomain
               apiVersion: meshifi.io/v1alpha1
               type: Selector
-              # namespace: "{{ .observed.composite.resource.metadata.namespace }}"
               selector:
+                minMatch: 1
+                maxMatch: 1
                 matchLabels:
-                  - type: Value
-                    
-                    value: "{{ .observed.composite.resource.spec.dataDomainRef }}"
+                  - key: meshifi.io/data-domain
+                    type: FromCompositeFieldPath
+                    valueFromFieldPath: spec.dataDomainRef
 
     - step: validate-data-domain
       functionRef:
@@ -36,10 +37,7 @@ spec:
         source: Inline
         inline:
           template: |-
-            {{- $dataDomainRef := .observed.composite.resource.spec.dataDomainRef -}}
-            {{- if not $dataDomainRef -}}
-            {{- fail "dataDomainRef is required but not specified" -}}
-            {{- end }}
+            {{- $DataDomain := index (index (index .context "apiextensions.crossplane.io/extra-resources") "DataDomain") 0 }}
             apiVersion: v1
             kind: ConfigMap
             metadata:
@@ -48,19 +46,10 @@ spec:
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: validation-check
                 gotemplating.fn.crossplane.io/ready: "True"
-                meshifi.io/data-domain-ref: "{{ $dataDomainRef }}"
               labels:
-                meshifi.io/data-domain: "{{ $dataDomainRef }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
-              ownerReferences:
-              - apiVersion: meshifi.io/v1alpha1
-                kind: DataDomain
-                name: "{{ $dataDomainRef }}"
-                uid: "00000000-0000-0000-0000-000000000000"
-                blockOwnerDeletion: false
-                controller: false
             data:
-              dataDomainRef: "{{ $dataDomainRef }}"
+              owner: {{ $DataDomain.spec.owner }}
               status: "validated"
               message: "Data domain reference validation passed"
 
