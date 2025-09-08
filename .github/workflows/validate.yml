@@ -55,6 +55,12 @@ jobs:
         env:
           CLUSTER_NAME: meshifi-dev
 
+      - name: Set up kubectl context
+        run: |
+          # Set up kubectl to use the Kind cluster
+          kubectl cluster-info --context kind-meshifi-dev
+          kubectl config use-context kind-meshifi-dev
+
       - name: Verify cluster is running
         run: |
           kubectl cluster-info
@@ -72,8 +78,6 @@ jobs:
           cd platform
           task install
           task test
-        env:
-          KUBECONFIG: ~/.kube/config
 
       - name: Clean up test resources
         if: always()
