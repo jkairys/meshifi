@@ -32,7 +32,7 @@ jobs:
         uses: helm/kind-action@v1.8.0
         with:
           cluster_name: meshifi-dev
-          cluster_config_path: dev-environment/kind/kind-config.yaml
+          config: dev-environment/kind/kind-config.yaml
 
       - name: Install additional dependencies
         run: |
