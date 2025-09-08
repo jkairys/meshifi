@@ -78,6 +78,8 @@ jobs:
           cd platform
           task install
           task test
+        env:
+          TIMEOUT: 60s
 
       - name: Clean up test resources
         if: always()
