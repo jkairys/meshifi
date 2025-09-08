@@ -45,7 +45,7 @@ jobs:
           curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
           # Install Crossplane CLI
-          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-1.14/install.sh | sh
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-2.0/install.sh | sh
           sudo mv kubectl-crossplane /usr/local/bin/crossplane
 
       - name: Set up development environment
