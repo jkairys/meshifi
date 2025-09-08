@@ -8,6 +8,51 @@ spec:
     kind: DataProduct
   mode: Pipeline
   pipeline:
+    - step: pull-extra-resources
+      functionRef:
+        name: crossplane-contrib-function-extra-resources
+      input:
+        apiVersion: extra-resources.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          extraResources:
+            - kind: DataDomain
+              into: DataDomain
+              apiVersion: meshifi.io/v1alpha1
+              type: Selector
+              selector:
+                minMatch: 1
+                maxMatch: 1
+                matchLabels:
+                  - key: meshifi.io/data-domain
+                    type: FromCompositeFieldPath
+                    valueFromFieldPath: spec.dataDomainRef
+
+    - step: validate-data-domain
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |-
+            {{- $DataDomain := index (index (index .context "apiextensions.crossplane.io/extra-resources") "DataDomain") 0 }}
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: "{{ .observed.composite.resource.metadata.name }}-validation"
+              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: validation-check
+                gotemplating.fn.crossplane.io/ready: "True"
+              labels:
+                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+            data:
+              owner: {{ $DataDomain.spec.owner }}
+              status: "validated"
+              message: "Data domain reference validation passed"
+
     - step: create-datasets
       functionRef:
         name: crossplane-contrib-function-go-templating
@@ -28,11 +73,13 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             data:
               id: "{{ .observed.composite.resource.spec.id }}"
               name: "{{ .observed.composite.resource.spec.name }}"
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             ---
             apiVersion: v1
             kind: ConfigMap
@@ -45,11 +92,13 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             data:
               id: "{{ .observed.composite.resource.spec.id }}"
               name: "{{ .observed.composite.resource.spec.name }}"
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             ---
             apiVersion: v1
             kind: ConfigMap
@@ -62,11 +111,13 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             data:
               id: "{{ .observed.composite.resource.spec.id }}"
               name: "{{ .observed.composite.resource.spec.name }}"
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
 
     - step: automatically-detect-readiness
       functionRef:

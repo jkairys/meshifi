@@ -7,7 +7,7 @@ spec:
   id: sales-data
   name: Sales Data
   description: "Example data product for demonstration"
-  owner: "data-team@example.com"
+  dataDomainRef: "example-domain"
   datasets:
     raw: true
     cleaned: true
