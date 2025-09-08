@@ -31,6 +31,9 @@ spec:
                 owner:
                   type: string
                   description: "Owner of the data product (email or team)"
+                dataDomainRef:
+                  type: string
+                  description: "Reference to the data domain this product belongs to (name of the DataDomain resource)"
                 datasets:
                   type: object
                   properties:
@@ -52,6 +55,7 @@ spec:
                 - name
                 - description
                 - owner
+                - dataDomainRef
             status:
               type: object
               properties:

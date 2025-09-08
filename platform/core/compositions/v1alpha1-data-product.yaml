@@ -8,6 +8,62 @@ spec:
     kind: DataProduct
   mode: Pipeline
   pipeline:
+    - step: pull-extra-resources
+      functionRef:
+        name: crossplane-contrib-function-extra-resources
+      input:
+        apiVersion: extra-resources.fn.crossplane.io/v1beta1
+        kind: Input
+        spec:
+          extraResources:
+            - kind: DataDomain
+              into: DataDomain
+              apiVersion: meshifi.io/v1alpha1
+              type: Selector
+              # namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              selector:
+                matchLabels:
+                  - type: Value
+                    
+                    value: "{{ .observed.composite.resource.spec.dataDomainRef }}"
+
+    - step: validate-data-domain
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |-
+            {{- $dataDomainRef := .observed.composite.resource.spec.dataDomainRef -}}
+            {{- if not $dataDomainRef -}}
+            {{- fail "dataDomainRef is required but not specified" -}}
+            {{- end }}
+            apiVersion: v1
+            kind: ConfigMap
+            metadata:
+              name: "{{ .observed.composite.resource.metadata.name }}-validation"
+              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: validation-check
+                gotemplating.fn.crossplane.io/ready: "True"
+                meshifi.io/data-domain-ref: "{{ $dataDomainRef }}"
+              labels:
+                meshifi.io/data-domain: "{{ $dataDomainRef }}"
+                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+              ownerReferences:
+              - apiVersion: meshifi.io/v1alpha1
+                kind: DataDomain
+                name: "{{ $dataDomainRef }}"
+                uid: "00000000-0000-0000-0000-000000000000"
+                blockOwnerDeletion: false
+                controller: false
+            data:
+              dataDomainRef: "{{ $dataDomainRef }}"
+              status: "validated"
+              message: "Data domain reference validation passed"
+
     - step: create-datasets
       functionRef:
         name: crossplane-contrib-function-go-templating
@@ -28,11 +84,13 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             data:
               id: "{{ .observed.composite.resource.spec.id }}"
               name: "{{ .observed.composite.resource.spec.name }}"
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             ---
             apiVersion: v1
             kind: ConfigMap
@@ -45,11 +103,13 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             data:
               id: "{{ .observed.composite.resource.spec.id }}"
               name: "{{ .observed.composite.resource.spec.name }}"
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             ---
             apiVersion: v1
             kind: ConfigMap
@@ -62,11 +122,13 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
             data:
               id: "{{ .observed.composite.resource.spec.id }}"
               name: "{{ .observed.composite.resource.spec.name }}"
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
 
     - step: automatically-detect-readiness
       functionRef:

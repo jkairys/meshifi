@@ -28,6 +28,7 @@ spec:
               labels:
                 example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
                 meshifi.io/data-domain: "{{ .observed.composite.resource.metadata.name }}"
+                name: "{{ .observed.composite.resource.metadata.name }}"
             data:
               description: "{{ .observed.composite.resource.spec.description }}"
               owner: "{{ .observed.composite.resource.spec.owner }}"

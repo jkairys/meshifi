@@ -57,15 +57,11 @@ tasks:
 
         echo "✅ Meshifi {{.PACKAGE}} package uninstalled"
 
-  # Testing
-  test:
-    desc: "Test the Meshifi package with example resources"
+  install-samples:
+    desc: "Install the Meshifi samples"
     silent: true
-    deps: [install]
     cmds:
       - |
-        echo "🧪 Testing Meshifi package with example resources..."
-
         # Apply example data domain
         echo "📋 Creating example DataDomain..."
         kubectl apply -f examples/data-domain.yaml
@@ -74,6 +70,24 @@ tasks:
         echo "📋 Creating example DataProduct..."
         kubectl apply -f examples/data-product.yaml
 
+  uninstall-samples:
+    desc: "Uninstall the Meshifi samples"
+    silent: true
+    cmds:
+      - |
+        echo "🗑️  Uninstalling Meshifi samples..."
+        kubectl delete -f examples/ --ignore-not-found=true
+        echo "✅ Meshifi samples uninstalled"
+
+  # Testing
+  test:
+    desc: "Test the Meshifi package with example resources"
+    silent: true
+    deps: [install]
+    cmds:
+      - echo "🧪 Testing Meshifi package with example resources..."
+      - task: install-samples
+      - |
         # Wait for resources to be ready
         echo "⏳ Waiting for resources to be ready..."
         kubectl wait --for=condition=Ready --timeout=60s datadomain/example-domain
