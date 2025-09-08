@@ -46,7 +46,7 @@ jobs:
 
           # Install Crossplane CLI
           curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-2.0/install.sh | sh
-          sudo mv kubectl-crossplane /usr/local/bin/crossplane
+          sudo mv crossplane /usr/local/bin/crossplane
 
       - name: Set up development environment
         run: |
