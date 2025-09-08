@@ -62,62 +62,34 @@ spec:
         source: Inline
         inline:
           template: |-
-            apiVersion: v1
-            kind: ConfigMap
-            metadata:
-              name: "{{ .observed.composite.resource.metadata.name }}-raw"
-              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: dataset-raw
-                gotemplating.fn.crossplane.io/ready: "True"
-              labels:
-                example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
-                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
-                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
-            data:
-              id: "{{ .observed.composite.resource.spec.id }}"
-              name: "{{ .observed.composite.resource.spec.name }}"
-              description: "{{ .observed.composite.resource.spec.description }}"
-              owner: "{{ .observed.composite.resource.spec.owner }}"
-              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
+            {{- $datasetTypes := list "raw" "cleaned" "curated" }}
+            {{- $first := true }}
+            {{- range $datasetType := $datasetTypes }}
+            {{- if index $.observed.composite.resource.spec.datasets $datasetType }}
+            {{- if not $first }}
             ---
+            {{- end }}
             apiVersion: v1
             kind: ConfigMap
             metadata:
-              name: "{{ .observed.composite.resource.metadata.name }}-cleaned"
-              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
+              name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}"
+              namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
               annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: dataset-cleaned
+                gotemplating.fn.crossplane.io/composition-resource-name: dataset-{{ $datasetType }}
                 gotemplating.fn.crossplane.io/ready: "True"
               labels:
-                example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
-                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
-                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
+                example.crossplane.io/app: "{{ $.observed.composite.resource.metadata.name }}"
+                meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
             data:
-              id: "{{ .observed.composite.resource.spec.id }}"
-              name: "{{ .observed.composite.resource.spec.name }}"
-              description: "{{ .observed.composite.resource.spec.description }}"
-              owner: "{{ .observed.composite.resource.spec.owner }}"
-              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
-            ---
-            apiVersion: v1
-            kind: ConfigMap
-            metadata:
-              name: "{{ .observed.composite.resource.metadata.name }}-curated"
-              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: dataset-curated
-                gotemplating.fn.crossplane.io/ready: "True"
-              labels:
-                example.crossplane.io/app: "{{ .observed.composite.resource.metadata.name }}"
-                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
-                meshifi.io/data-domain: "{{ .observed.composite.resource.spec.dataDomainRef }}"
-            data:
-              id: "{{ .observed.composite.resource.spec.id }}"
-              name: "{{ .observed.composite.resource.spec.name }}"
-              description: "{{ .observed.composite.resource.spec.description }}"
-              owner: "{{ .observed.composite.resource.spec.owner }}"
-              dataDomainRef: "{{ .observed.composite.resource.spec.dataDomainRef }}"
+              id: "{{ $.observed.composite.resource.spec.id }}"
+              name: "{{ $.observed.composite.resource.spec.name }}"
+              description: "{{ $.observed.composite.resource.spec.description }}"
+              owner: "{{ $.observed.composite.resource.spec.owner }}"
+              dataDomainRef: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
+            {{- $first = false }}
+            {{- end }}
+            {{- end }}
 
     - step: automatically-detect-readiness
       functionRef:
