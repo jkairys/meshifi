@@ -100,6 +100,25 @@ tasks:
     cmds:
       - task: crossplane:port-forward
 
+  # GCP Provider Management
+  setup-gcp:
+    desc: "Set up GCP provider for Crossplane"
+    cmds:
+      - task: crossplane:setup-gcp
+    summary: "Install and configure GCP provider for Crossplane"
+
+  install-gcp-provider:
+    desc: "Install GCP provider only"
+    cmds:
+      - task: crossplane:install-gcp-provider
+    summary: "Install GCP provider for Crossplane"
+
+  configure-gcp-provider:
+    desc: "Configure GCP provider with credentials"
+    cmds:
+      - task: crossplane:configure-gcp-provider
+    summary: "Configure GCP provider with service account credentials"
+
   # Cleanup
   clean:
     desc: "Clean up development environment"

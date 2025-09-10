@@ -1,0 +1,13 @@
+apiVersion: cloudplatform.gcp.m.upbound.io/v1beta1
+kind: ProjectIAMMember
+metadata:
+  name: project-iam-member-crossplane
+  namespace: default
+spec:
+  forProvider:
+    project: meshifi-platform
+    role: roles/serviceusage.serviceUsageAdmin
+    member: serviceAccount:crossplane@meshifi-platform.iam.gserviceaccount.com
+  providerConfigRef:
+    kind: ProviderConfig
+    name: default
