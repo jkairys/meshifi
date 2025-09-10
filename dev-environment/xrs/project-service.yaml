@@ -1,0 +1,17 @@
+apiVersion: cloudplatform.gcp.m.upbound.io/v1beta1
+kind: ProjectService
+metadata:
+  name: bigquery-api
+  namespace: default
+  labels:
+    app.kubernetes.io/name: bigquery-api
+    app.kubernetes.io/component: gcp-service
+    meshifi.io/service: bigquery
+    meshifi.io/provider: gcp
+spec:
+  forProvider:
+    project: meshifi-platform
+    service: bigquery.googleapis.com
+  providerConfigRef:
+    kind: ProviderConfig
+    name: default

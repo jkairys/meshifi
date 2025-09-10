@@ -25,6 +25,56 @@ spec:
                 owner:
                   type: string
                   description: "Owner of the data domain (email or team)"
+                metadata:
+                  type: object
+                  properties:
+                    version:
+                      type: string
+                      description: "Version of the data domain"
+                    createdBy:
+                      type: string
+                      description: "Who created this data domain"
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: "Tags for categorizing the data domain"
+                gcp:
+                  type: object
+                  properties:
+                    projectId:
+                      type: string
+                      description: "GCP Project ID"
+                    region:
+                      type: string
+                      description: "GCP region for resources"
+                      default: "us-central1"
+                    resources:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            enum:
+                              [
+                                "storage",
+                                "bigquery",
+                                "compute",
+                                "pubsub",
+                                "cloudsql",
+                              ]
+                            description: "Type of GCP resource to create"
+                          name:
+                            type: string
+                            description: "Name of the resource"
+                          config:
+                            type: object
+                            description: "Resource-specific configuration"
+                        required:
+                          - type
+                          - name
+                      description: "List of GCP resources to provision"
               required:
                 - description
                 - owner

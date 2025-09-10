@@ -12,6 +12,14 @@ Before starting development, ensure you have the following tools installed:
 - **Helm**: Package manager for Kubernetes
 - **Task**: Task runner (installed automatically by install-deps task)
 
+### For GCP Integration (Optional)
+
+If you plan to use GCP resources with Crossplane:
+
+- **gcloud CLI**: Google Cloud SDK
+- **GCP Project**: Valid GCP project with billing enabled
+- **Authentication**: `gcloud auth login` completed
+
 ## Quick Start
 
 1. **Set up development environment**:
@@ -32,6 +40,38 @@ Before starting development, ensure you have the following tools installed:
    ```bash
    kubectl apply -f examples/data-domain.yaml
    kubectl get datadomains
+   ```
+
+### With GCP Integration
+
+If you want to use GCP resources:
+
+1. **Set up development environment**:
+
+   ```bash
+   cd dev-environment
+   task setup
+   ```
+
+2. **Set up GCP provider**:
+
+   ```bash
+   export GCP_PROJECT_ID=your-project-id
+   cd crossplane-gcp
+   task setup
+   ```
+
+3. **Install Meshifi platform**:
+
+   ```bash
+   cd ../../platform
+   task install
+   ```
+
+4. **Test with GCP example**:
+   ```bash
+   kubectl apply -f examples/gcp-data-domain.yaml
+   kubectl get gcpdatadomains
    ```
 
 ### Alternative Setup
@@ -58,9 +98,17 @@ If you prefer to install components separately:
    ```
 
 4. **Install Meshifi platform**:
+
    ```bash
    cd ../platform
    task install
+   ```
+
+5. **Set up GCP provider (optional)**:
+   ```bash
+   export GCP_PROJECT_ID=your-project-id
+   cd ../dev-environment/crossplane-gcp
+   task setup
    ```
 
 ## Available Tasks
@@ -86,6 +134,16 @@ Run these from the `dev-environment/` directory:
 - `task logs` - Show Crossplane logs
 - `task port-forward` - Port forward Crossplane API server
 
+**GCP Provider Tasks:**
+
+Run these from the `dev-environment/crossplane-gcp/` directory:
+
+- `task setup` - Complete GCP provider setup
+- `task create-gcp-key` - Create GCP service account and store key
+- `task install-gcp-providers` - Install GCP providers from Upbound
+- `task configure-gcp-provider` - Configure provider with credentials
+- `task debug-provider-config` - Debug GCP provider configuration
+
 ### Platform Tasks (platform/)
 
 Run these from the `platform/` directory:
@@ -105,8 +163,12 @@ meshifi/
 │   ├── kind/                # Kind cluster management
 │   │   ├── Taskfile.yaml    # Create/delete Kind clusters
 │   │   └── kind-config.yaml # Kind cluster configuration
-│   ├── crossplane/          # Crossplane installation tasks
-│   │   └── Taskfile.yaml    # Install/manage Crossplane
+│   ├── crossplane/          # Crossplane core installation tasks
+│   │   └── Taskfile.yaml    # Install/manage Crossplane core
+├── crossplane-gcp/      # GCP provider installation tasks
+│   │   ├── Taskfile.yaml    # Install/manage GCP providers
+│   │   ├── provider-config.yaml # GCP provider configuration
+│   │   └── providers/        # GCP provider definitions
 │   └── Taskfile.yaml        # Main dev environment orchestrator
 ├── platform/                # Meshifi platform components
 │   ├── core/                # Core Crossplane package
@@ -160,14 +222,30 @@ meshifi/
    kubectl get datadomains
    ```
 
-6. **View logs**:
+6. **Set up GCP provider (optional)**:
+
+   ```bash
+   export GCP_PROJECT_ID=your-project-id
+   cd ../dev-environment/crossplane-gcp
+   task setup
+   ```
+
+7. **Test with GCP example (if GCP provider is set up)**:
+
+   ```bash
+   cd ../../platform
+   kubectl apply -f examples/gcp-data-domain.yaml
+   kubectl get gcpdatadomains
+   ```
+
+8. **View logs**:
 
    ```bash
    cd ../dev-environment
    task logs
    ```
 
-7. **Clean up when done**:
+9. **Clean up when done**:
    ```bash
    task clean
    ```
@@ -212,6 +290,13 @@ meshifi/
 - Verify Helm is installed: `helm version`
 - Check Crossplane logs: `task logs`
 
+**GCP provider issues**:
+
+- Ensure GCP_PROJECT_ID is set: `echo $GCP_PROJECT_ID`
+- Check gcloud authentication: `gcloud auth list`
+- Verify required APIs are enabled: `gcloud services list --enabled`
+- Debug provider config: `cd dev-environment/crossplane-gcp && task debug-provider-config`
+
 **Port conflicts**:
 
 - Check if ports 80, 443, or 30000 are in use
@@ -222,6 +307,7 @@ meshifi/
 - Check the logs: `cd dev-environment && task logs`
 - Verify cluster status: `cd dev-environment && task cluster-info`
 - Review Crossplane status: `cd dev-environment && task crossplane-status`
+- Check GCP provider status: `cd dev-environment/crossplane-gcp && task debug-provider-config`
 - Check platform status: `cd platform && task status`
 
 ## Contributing
