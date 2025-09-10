@@ -1,7 +1,7 @@
 apiVersion: cloudplatform.gcp.m.upbound.io/v1beta1
 kind: ProjectIAMMember
 metadata:
-  name: project-iam-member-crossplane
+  name: crossplane-serviceusage
   namespace: default
 spec:
   forProvider:
@@ -11,3 +11,18 @@ spec:
   providerConfigRef:
     kind: ProviderConfig
     name: default
+---
+apiVersion: cloudplatform.gcp.m.upbound.io/v1beta1
+kind: ProjectIAMMember
+metadata:
+  name: crossplane-bq
+  namespace: default
+spec:
+  forProvider:
+    project: meshifi-platform
+    role: roles/bigquery.admin
+    member: serviceAccount:crossplane@meshifi-platform.iam.gserviceaccount.com
+  providerConfigRef:
+    kind: ProviderConfig
+    name: default
+---
