@@ -28,7 +28,7 @@ tasks:
         echo "⏳ Waiting for Crossplane to be ready..."
         kubectl wait --for=condition=Available --timeout=300s deployment/crossplane -n crossplane-system
         echo "✅ Crossplane is ready"
-      - task: gcp:setup
+
     summary: "Install Crossplane using Helm if not already installed"
 
   uninstall:
