@@ -7,67 +7,35 @@ This guide walks you through setting up Google Cloud Platform (GCP) infrastructu
 - A GCP account with billing enabled
 - A GCP project (create one if you don't have one)
 - Your Kind cluster with Crossplane already installed
+- gcloud CLI installed and authenticated
 
 ## Step 1: GCP Console Setup
 
-### 1.1 Enable Required APIs
-
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
-2. Select your project
-3. Navigate to **APIs & Services** > **Library**
-4. Enable these APIs:
-   - **Cloud Resource Manager API**
-   - **Compute Engine API**
-   - **Cloud SQL Admin API**
-   - **Cloud Storage API**
-   - **Identity and Access Management (IAM) API**
-   - **Service Usage API**
-   - **BigQuery API** (if using BigQuery)
-   - **Pub/Sub API** (if using Pub/Sub)
-
-### 1.2 Create Service Account
-
-1. Go to **IAM & Admin** > **Service Accounts**
-2. Click **Create Service Account**
-3. Fill in the details:
-   - **Name**: `crossplane-provider-gcp`
-   - **Description**: `Service account for Crossplane GCP provider`
-   - **ID**: `crossplane-provider-gcp` (auto-generated)
-
-### 1.3 Assign Required Roles
-
-For the service account, assign these roles:
-
-**Minimum Required Roles:**
-
-- **Project IAM Admin** (`roles/resourcemanager.projectIamAdmin`)
-- **Service Account Admin** (`roles/iam.serviceAccountAdmin`)
-- **Compute Instance Admin** (`roles/compute.instanceAdmin`)
-- **Network Admin** (`roles/compute.networkAdmin`)
-- **Storage Admin** (`roles/storage.admin`)
-
-**Additional Roles (if using these services):**
-
-- **BigQuery Admin** (`roles/bigquery.admin`)
-- **Cloud SQL Admin** (`roles/cloudsql.admin`)
-- **Pub/Sub Admin** (`roles/pubsub.admin`)
-- **Kubernetes Engine Admin** (`roles/container.admin`)
-
-### 1.4 Install and Authenticate gcloud CLI
+### 1.1 Install and Authenticate gcloud CLI
 
 1. Install the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) if not already installed
 2. Authenticate with your Google account:
    ```bash
    gcloud auth login
    ```
-3. Set your default project (optional, but recommended):
+3. Set your default project:
    ```bash
    gcloud config set project YOUR_PROJECT_ID
    ```
 
-### 1.5 Note Your Project ID
+### 1.2 Enable Required APIs
 
-Make sure you know your GCP Project ID - you'll need this for the configuration.
+The setup process will automatically enable the required APIs, but you can also enable them manually:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Select your project
+3. Navigate to **APIs & Services** > **Library**
+4. Enable these APIs:
+   - **Cloud Resource Manager API**
+   - **Secret Manager API**
+   - **Identity and Access Management (IAM) API**
+
+**Note**: The automated setup will enable these APIs automatically, so manual enabling is optional.
 
 ## Step 2: Configure Environment Variables
 
@@ -77,27 +45,42 @@ Set the required environment variable:
 export GCP_PROJECT_ID="your-gcp-project-id"
 ```
 
-**Note**: You no longer need to manually create and download service account keys. The setup process will automatically create the service account and fetch the key using the gcloud CLI.
-
 ## Step 3: Install and Configure GCP Provider
 
-### 3.1 Install GCP Provider
+### 3.1 Complete GCP Provider Setup
 
 ```bash
-cd dev-environment
-task setup-gcp
+cd dev-environment/crossplane-gcp
+task setup
 ```
 
 This will:
 
-- Install the GCP provider for Crossplane
-- Automatically create the service account (`crossplane-provider-gcp`)
-- Assign all required roles to the service account
-- Generate and download the service account key
-- Configure Crossplane with the credentials
-- Clean up the temporary key file
+- Uninstall any existing GCP providers
+- Install the upjet GCP providers from Upbound registry
+- Create the service account (`crossplane`) automatically
+- Generate and store the service account key in GCP Secret Manager
+- Configure Crossplane with the credentials from Secret Manager
+- Clean up temporary files
 
-### 3.2 Verify Installation
+### 3.2 Step-by-Step Setup (Alternative)
+
+If you prefer to run the setup steps individually:
+
+```bash
+cd dev-environment/crossplane-gcp
+
+# Create GCP service account and store key in Secret Manager
+task create-gcp-key
+
+# Install GCP providers from Upbound registry
+task install-gcp-providers
+
+# Configure provider with credentials
+task configure-gcp-provider
+```
+
+### 3.3 Verify Installation
 
 Check that everything is working:
 
@@ -110,18 +93,21 @@ kubectl get providerconfigs
 
 # Check GCP credentials secret
 kubectl get secrets -n crossplane-system | grep gcp
+
+# Debug provider configuration (if needed)
+task debug-provider-config
 ```
 
-## Step 4: Install GCP Compositions
+## Step 4: Install Meshifi Platform
 
-Install the GCP-enabled compositions:
+Install the Meshifi platform with GCP compositions:
 
 ```bash
-cd ../platform
+cd ../../platform
 task install
 ```
 
-This will install the updated DataDomain XR with GCP support and the GCP composition.
+This will install the Meshifi platform with GCP-enabled compositions.
 
 ## Step 5: Test GCP Resource Provisioning
 
@@ -145,6 +131,7 @@ kubectl get datadomains -w
 kubectl get buckets,datasets,instances -w
 
 # Check Crossplane logs
+cd ../dev-environment
 task logs
 ```
 
@@ -177,21 +164,33 @@ task clean
 2. **Permission denied**: Verify that the service account has the required roles
 3. **API not enabled**: Make sure all required APIs are enabled in your GCP project
 4. **Resource creation fails**: Check the Crossplane logs for detailed error messages
+5. **GCP_PROJECT_ID not set**: Ensure the environment variable is properly set
 
 ### Useful Commands
 
 ```bash
+# Debug GCP provider configuration
+cd dev-environment/crossplane-gcp
+task debug-provider-config
+
 # Check provider status
-kubectl describe provider provider-gcp
+kubectl describe provider upbound-provider-gcp-iam
 
 # Check provider config
 kubectl describe providerconfig default
 
 # Check Crossplane logs
-kubectl logs -n crossplane-system -l app=crossplane
+cd ../dev-environment
+task logs
 
 # Check specific resource status
 kubectl describe datadomain analytics-domain
+
+# Check GCP service account
+gcloud iam service-accounts list --filter="email:crossplane@$GCP_PROJECT_ID.iam.gserviceaccount.com"
+
+# Check GCP Secret Manager
+gcloud secrets list --filter="name:crossplane-gcp-key"
 ```
 
 ## Next Steps
@@ -205,8 +204,19 @@ Now that you have GCP infrastructure provisioning working, you can:
 
 ## Security Considerations
 
-- Store your service account key file securely
+- Service account keys are automatically stored in GCP Secret Manager (not locally)
+- Keys are automatically rotated when recreated
+- Minimal required permissions are assigned to the service account
+- Credentials are cleaned up from local temporary files
 - Consider using Workload Identity instead of service account keys for production
-- Regularly rotate your service account keys
 - Use least-privilege access for the service account roles
 - Consider using separate service accounts for different environments
+
+## Key Features of the GCP Provider Setup
+
+- **Automated Service Account Creation**: Creates `crossplane` service account automatically
+- **Secret Manager Integration**: Stores credentials securely in GCP Secret Manager
+- **Upbound Registry**: Uses the latest upjet GCP providers from Upbound
+- **Automatic API Enablement**: Enables required GCP APIs automatically
+- **Comprehensive Debugging**: Includes detailed debugging and status checking tools
+- **Clean Credential Management**: No local key files, automatic cleanup

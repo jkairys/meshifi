@@ -16,8 +16,15 @@ dev-environment/
 ├── kind/
 │   ├── Taskfile.yaml              # Kind cluster management
 │   └── kind-config.yaml           # Kind cluster configuration
-└── crossplane/
-    └── Taskfile.yaml              # Crossplane management
+├── crossplane/
+│   └── Taskfile.yaml              # Crossplane core management
+└── crossplane-gcp/
+    ├── Taskfile.yaml              # GCP provider management
+    ├── provider-config.yaml       # GCP provider configuration
+    └── providers/                 # GCP provider definitions
+        ├── bigquery.yaml
+        ├── cloudplatform.yaml
+        └── iam.yaml
 
 platform/
 └── Taskfile.yml                   # Meshifi platform management
@@ -87,24 +94,67 @@ Handles Kind cluster lifecycle management.
 
 ### 4. dev-environment/crossplane/Taskfile.yaml
 
-Manages Crossplane installation and configuration.
+Manages Crossplane core installation and configuration.
 
 **Tasks:**
 
-- `install` - Install Crossplane
-- `uninstall` - Uninstall Crossplane
+- `install` - Install Crossplane using Helm
+- `uninstall` - Uninstall Crossplane from cluster
+- `clean-crds` - Clean up problematic Crossplane CRDs
 - `status` - Check Crossplane status
 - `logs` - Show Crossplane logs
-- `port-forward` - Port forward for debugging
+- `help` - Show available Crossplane tasks
 
 **Features:**
 
-- Helm-based installation
-- Provider management
-- Health checking
-- Debugging support
+- Helm-based installation with version management
+- Automatic dependency checking
+- CRD cleanup for version conflicts
+- Health checking and status monitoring
+- Debugging support with logs
+- Graceful error handling for missing clusters
 
-### 5. platform/Taskfile.yml
+**Variables:**
+
+- `CROSSPLANE_VERSION` - Crossplane version to install (default: v2.0.2)
+
+### 5. dev-environment/crossplane-gcp/Taskfile.yaml
+
+Manages GCP provider installation and configuration for Crossplane.
+
+**Tasks:**
+
+- `deps` - Check required variables are set
+- `uninstall-gcp-provider` - Uninstall existing GCP providers
+- `install-gcp-providers` - Install upjet GCP providers from Upbound registry
+- `create-gcp-key` - Create GCP service account key and store in Secret Manager
+- `configure-gcp-provider` - Configure GCP provider with credentials
+- `setup` - Complete GCP setup (uninstall + install + configure)
+- `debug-provider-config` - Debug GCP provider config status and events
+
+**Features:**
+
+- Upbound registry provider management
+- GCP service account and key management
+- Secret Manager integration for credential storage
+- Provider configuration with proper authentication
+- Comprehensive debugging and status checking
+- Support for multiple GCP provider versions
+- Automatic cleanup of conflicting providers
+
+**Variables:**
+
+- `CROSSPLANE_SERVICE_ACCOUNT_EMAIL` - GCP service account email
+- `GCP_SECRET_NAME` - Name of the secret in GCP Secret Manager
+- `GCP_PROJECT_ID` - GCP project ID (required)
+
+**Dependencies:**
+
+- Requires `GCP_PROJECT_ID` environment variable
+- Requires `gcloud` CLI to be installed and authenticated
+- Requires Crossplane to be installed first
+
+### 6. platform/Taskfile.yml
 
 Handles Meshifi platform installation and testing.
 
@@ -137,6 +187,22 @@ task install
 
 # Test with example
 kubectl apply -f examples/data-domain.yaml
+```
+
+### GCP Provider Setup
+
+```bash
+# Set GCP project ID
+export GCP_PROJECT_ID=your-project-id
+
+# Complete GCP setup (requires gcloud authentication)
+cd dev-environment/crossplane-gcp
+task setup
+
+# Or step by step:
+task create-gcp-key      # Create service account and store key in Secret Manager
+task install-gcp-providers  # Install GCP providers
+task configure-gcp-provider # Configure provider with credentials
 ```
 
 ### Individual Components
@@ -172,6 +238,10 @@ task --list
 cd ../crossplane
 task --list
 
+# List GCP provider tasks
+cd ../crossplane-gcp
+task --list
+
 # List platform tasks
 cd ../../platform
 task --list
@@ -189,6 +259,9 @@ task --taskfile kind/Taskfile.yaml create
 
 # Use Crossplane taskfile directly
 task --taskfile crossplane/Taskfile.yaml status
+
+# Use GCP provider taskfile directly
+task --taskfile crossplane-gcp/Taskfile.yaml setup
 
 # Use platform taskfile directly
 cd ../platform
@@ -279,5 +352,49 @@ The new structure provides better organization:
 - Check that prerequisite tasks are completed
 - Use individual component tasks to isolate issues
 - Review task dependencies in the main Taskfile
+
+## GCP Provider Considerations
+
+### Prerequisites
+
+Before using the GCP provider tasks, ensure you have:
+
+1. **GCP Project**: A valid GCP project with billing enabled
+2. **gcloud CLI**: Installed and authenticated with appropriate permissions
+3. **Required APIs**: Cloud Resource Manager and Secret Manager APIs enabled
+4. **Permissions**: Project IAM Admin role or equivalent permissions
+
+### Environment Variables
+
+The GCP provider tasks require the following environment variable:
+
+```bash
+export GCP_PROJECT_ID=your-gcp-project-id
+```
+
+### Service Account Management
+
+The GCP provider tasks automatically:
+
+- Create a service account named `crossplane`
+- Generate and manage service account keys
+- Store credentials securely in GCP Secret Manager
+- Configure proper IAM roles and permissions
+
+### Security Considerations
+
+- Service account keys are stored in GCP Secret Manager, not locally
+- Keys are automatically rotated when recreated
+- Minimal required permissions are assigned
+- Credentials are cleaned up from local temporary files
+
+### Troubleshooting GCP Provider
+
+Common issues and solutions:
+
+1. **Authentication errors**: Ensure `gcloud auth login` is completed
+2. **Permission denied**: Check IAM roles and project access
+3. **API not enabled**: Run `gcloud services enable` for required APIs
+4. **Provider not healthy**: Use `task debug-provider-config` for detailed status
 
 This modular structure provides a clean, maintainable, and flexible approach to managing the Meshifi development environment.
