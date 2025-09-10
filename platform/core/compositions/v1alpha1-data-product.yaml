@@ -69,24 +69,28 @@ spec:
             {{- if not $first }}
             ---
             {{- end }}
-            apiVersion: v1
-            kind: ConfigMap
+            {{- $friendlyName := printf "%s_%s" (replace "-" "_" $.observed.composite.resource.metadata.name) $datasetType }}
+            apiVersion: bigquery.gcp.m.upbound.io/v1beta1
+            kind: Dataset
             metadata:
               name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}"
               namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: dataset-{{ $datasetType }}
-                gotemplating.fn.crossplane.io/ready: "True"
+                crossplane.io/external-name: "{{ $friendlyName }}"
+                # gotemplating.fn.crossplane.io/ready: "True"
               labels:
                 example.crossplane.io/app: "{{ $.observed.composite.resource.metadata.name }}"
                 meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
                 meshifi.io/data-domain: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
-            data:
-              id: "{{ $.observed.composite.resource.spec.id }}"
-              name: "{{ $.observed.composite.resource.spec.name }}"
-              description: "{{ $.observed.composite.resource.spec.description }}"
-              owner: "{{ $.observed.composite.resource.spec.owner }}"
-              dataDomainRef: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
+            spec:
+              providerConfigRef:
+                kind: ProviderConfig
+                name: default
+              forProvider:
+                project: meshifi-platform
+                location: australia-southeast1
+                friendlyName: {{ $friendlyName }}
             {{- $first = false }}
             {{- end }}
             {{- end }}
