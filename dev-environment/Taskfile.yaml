@@ -16,6 +16,9 @@ includes:
   crossplane:
     taskfile: crossplane/Taskfile.yaml
     dir: crossplane
+  crossplane-gcp:
+    taskfile: crossplane-gcp/Taskfile.yaml
+    dir: crossplane-gcp
   # meshifi: ./dev-environment/meshifi/Taskfile.yaml
 
 tasks:

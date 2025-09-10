@@ -116,8 +116,3 @@ tasks:
     silent: true
     cmds:
       - task --list
-
-includes:
-  gcp:
-    taskfile: gcp/Taskfile.yaml
-    dir: gcp
