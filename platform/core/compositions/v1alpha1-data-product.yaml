@@ -95,6 +95,67 @@ spec:
             {{- end }}
             {{- end }}
 
+    - step: create-sa-and-bindings
+      functionRef:
+        name: crossplane-contrib-function-go-templating
+      input:
+        apiVersion: gotemplating.fn.crossplane.io/v1beta1
+        kind: GoTemplate
+        source: Inline
+        inline:
+          template: |-
+            {{- $serviceAccountName := printf "%s-sa" (replace "_" "-" $.observed.composite.resource.metadata.name) }}
+            apiVersion: cloudplatform.gcp.m.upbound.io/v1beta1
+            kind: ServiceAccount
+            metadata:
+              name: some-sa
+              namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: data-product-sa
+                gotemplating.fn.crossplane.io/ready: "True"
+              labels:
+                meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
+            spec:
+              forProvider:
+                project: meshifi-platform
+                description: "Service account for data product {{ $.observed.composite.resource.metadata.name }}"
+              providerConfigRef:
+                name: default
+                kind: ProviderConfig
+
+            ---
+            {{- $datasetTypes := list "raw" "cleaned" "curated" }}
+            {{- $first := true }}
+            {{- range $datasetType := $datasetTypes }}
+            {{- if index $.observed.composite.resource.spec.datasets $datasetType }}
+            {{- if not $first }}
+            ---
+            {{- end }}
+            {{- $first = false }}
+            apiVersion: bigquery.gcp.m.upbound.io/v1beta1
+            kind: DatasetIAMMember
+            metadata:
+              name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}-iam"
+              namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
+              annotations:
+                gotemplating.fn.crossplane.io/composition-resource-name: dataset-{{ $datasetType }}-iam
+              labels:
+                example.crossplane.io/app: "{{ $.observed.composite.resource.metadata.name }}"
+                meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
+                meshifi.io/data-domain: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
+            spec:
+              providerConfigRef:
+                kind: ProviderConfig
+                name: default
+              forProvider:
+                project: meshifi-platform
+                datasetIdRef:
+                  name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}"
+                role: roles/bigquery.dataEditor
+                member: serviceAccount:{{ $.observed.composite.resource.spec.serviceAccountEmail }}
+            {{- end }}
+            {{- end }}
+
     - step: automatically-detect-readiness
       functionRef:
         name: crossplane-contrib-function-auto-ready
