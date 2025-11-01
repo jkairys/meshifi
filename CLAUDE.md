@@ -165,6 +165,23 @@ kubectl get providerconfigs
 - **GCP authentication errors**: Ensure `GCP_PROJECT_ID` is set and `gcloud auth login` completed
 - **Provider not healthy**: Check provider pods in `crossplane-system` namespace
 
+## CI/CD
+
+### GitHub Workflow
+
+The repository includes a validation workflow (`.github/workflows/validate.yml`) that:
+- Sets up a Kind cluster
+- Installs Crossplane and required functions
+- Installs and tests the Meshifi platform
+- Runs on pushes and PRs to `main` and `develop` branches
+
+**Environment Variables:**
+- `GCP_PROJECT_ID`: Set as a repository secret or defaults to `meshifi-platform`
+  - Required for GCP provider setup and resource provisioning
+  - Configure in GitHub Settings → Secrets and variables → Actions
+
+The workflow validates that compositions work correctly without requiring actual GCP credentials (resources will be created but not provisioned).
+
 ## File Locations
 
 - **Platform definitions**: `platform/core/`

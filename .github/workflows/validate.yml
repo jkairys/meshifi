@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'meshifi-platform' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -52,8 +55,6 @@ jobs:
         run: |
           cd dev-environment
           task setup
-        env:
-          CLUSTER_NAME: meshifi-dev
 
       - name: Set up kubectl context
         run: |
