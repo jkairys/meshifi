@@ -4,7 +4,7 @@ metadata:
   name: default
   namespace: default
 spec:
-  projectID: meshifi-platform
+  projectID: ${GCP_PROJECT_ID}
   credentials:
     source: Secret
     secretRef:

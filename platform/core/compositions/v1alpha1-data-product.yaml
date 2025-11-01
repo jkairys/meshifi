@@ -152,7 +152,7 @@ spec:
                 datasetIdRef:
                   name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}"
                 role: roles/bigquery.dataEditor
-                member: serviceAccount:{{ $.observed.composite.resource.spec.serviceAccountEmail }}
+                member: serviceAccount:some-sa@meshifi-platform.iam.gserviceaccount.com
             {{- end }}
             {{- end }}
 
