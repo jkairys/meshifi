@@ -182,6 +182,37 @@ The repository includes a validation workflow (`.github/workflows/validate.yml`)
 
 The workflow validates that compositions work correctly without requiring actual GCP credentials (resources will be created but not provisioned).
 
+### GitHub Actions Service Account Setup
+
+For full GCP integration in GitHub Actions (to actually provision resources in GCP):
+
+1. **Create the service account:**
+   ```bash
+   export GCP_PROJECT_ID=your-project-id
+   cd dev-environment/github
+   task setup
+   ```
+
+2. **Add secrets to GitHub repository:**
+   - `GCP_SA_KEY`: Service account key JSON (from `github-sa-key.json`)
+   - `GCP_PROJECT_ID`: Your GCP project ID
+
+3. **Clean up local key file:**
+   ```bash
+   task delete-key-file
+   ```
+
+See `dev-environment/github/README.md` for detailed setup instructions.
+
+**Assigned IAM Roles:**
+- `roles/resourcemanager.projectIamAdmin` - Manage IAM policies
+- `roles/bigquery.admin` - Manage BigQuery resources
+- `roles/iam.serviceAccountAdmin` - Create service accounts
+- `roles/iam.serviceAccountKeyAdmin` - Manage service account keys
+- `roles/secretmanager.admin` - Manage secrets
+- `roles/container.clusterAdmin` - Manage GKE clusters (future)
+- `roles/compute.admin` - Manage compute resources (future)
+
 ## File Locations
 
 - **Platform definitions**: `platform/core/`
