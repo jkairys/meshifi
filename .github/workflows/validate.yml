@@ -19,18 +19,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
-
       - name: Install Task
         uses: arduino/setup-task@v1
         with:
           version: 3.x
-
-      - name: Install Docker
-        uses: docker/setup-buildx-action@v3
 
       - name: Authenticate to Google Cloud
         if: ${{ env.GCP_SA_KEY != '' }}
@@ -42,56 +34,10 @@ jobs:
         if: ${{ env.GCP_SA_KEY != '' }}
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Install Kind
-        uses: helm/kind-action@v1.8.0
-        with:
-          cluster_name: meshifi-dev
-          config: dev-environment/kind/kind-config.yaml
-
-      - name: Install additional dependencies
-        run: |
-          # Install kubectl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
-
-          # Install Helm
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-
-          # Install Crossplane CLI
-          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-2.0/install.sh | sh
-          sudo mv crossplane /usr/local/bin/crossplane
-
       - name: Set up development environment
         run: |
           cd dev-environment
           task setup
-
-      - name: Set up kubectl context
-        run: |
-          # Set up kubectl to use the Kind cluster
-          kubectl cluster-info --context kind-meshifi-dev
-          kubectl config use-context kind-meshifi-dev
-
-      - name: Verify cluster is running
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-          kubectl get pods -A
-
-      - name: Wait for Crossplane to be ready
-        run: |
-          echo "Waiting for Crossplane to be ready..."
-          kubectl wait --for=condition=Available --timeout=300s deployment/crossplane -n crossplane-system
-          kubectl wait --for=condition=Available --timeout=300s deployment/crossplane-rbac-manager -n crossplane-system
-
-      - name: Install Crossplane functions
-        run: |
-          echo "Installing required Crossplane functions..."
-          kubectl apply -f platform/core/functions.yaml
-          echo "Waiting for functions to be ready..."
-          kubectl wait --for=condition=Installed --timeout=300s function/crossplane-contrib-function-go-templating
-          kubectl wait --for=condition=Installed --timeout=300s function/crossplane-contrib-function-auto-ready
 
       - name: Install and test platform
         run: |
