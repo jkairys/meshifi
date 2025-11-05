@@ -11,79 +11,62 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID || 'meshifi-platform' }}
+      GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+      CI: true
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
 
       - name: Install Task
         uses: arduino/setup-task@v1
         with:
           version: 3.x
 
-      - name: Install Docker
-        uses: docker/setup-buildx-action@v3
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.28.0'
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.13.0'
 
       - name: Install Kind
-        uses: helm/kind-action@v1.8.0
+        run: |
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Authenticate to Google Cloud
+        if: ${{ env.GCP_SA_KEY != '' }}
+        uses: google-github-actions/auth@v2
         with:
-          cluster_name: meshifi-dev
-          config: dev-environment/kind/kind-config.yaml
+          credentials_json: ${{ env.GCP_SA_KEY }}
 
-      - name: Install additional dependencies
-        run: |
-          # Install kubectl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/
+      - name: Set up Cloud SDK
+        if: ${{ env.GCP_SA_KEY != '' }}
+        uses: google-github-actions/setup-gcloud@v2
 
-          # Install Helm
-          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      - name: Create Kind cluster
+        working-directory: dev-environment
+        run: task kind:create
 
-          # Install Crossplane CLI
-          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-2.0/install.sh | sh
-          sudo mv crossplane /usr/local/bin/crossplane
+      - name: Install Crossplane
+        working-directory: dev-environment
+        run: task crossplane:install
 
-      - name: Set up development environment
-        run: |
-          cd dev-environment
-          task setup
-        env:
-          CLUSTER_NAME: meshifi-dev
-
-      - name: Set up kubectl context
-        run: |
-          # Set up kubectl to use the Kind cluster
-          kubectl cluster-info --context kind-meshifi-dev
-          kubectl config use-context kind-meshifi-dev
-
-      - name: Verify cluster is running
-        run: |
-          kubectl cluster-info
-          kubectl get nodes
-          kubectl get pods -A
-
-      - name: Wait for Crossplane to be ready
-        run: |
-          echo "Waiting for Crossplane to be ready..."
-          kubectl wait --for=condition=Available --timeout=300s deployment/crossplane -n crossplane-system
-          kubectl wait --for=condition=Available --timeout=300s deployment/crossplane-rbac-manager -n crossplane-system
-
-      - name: Install Crossplane functions
-        run: |
-          echo "Installing required Crossplane functions..."
-          kubectl apply -f platform/core/functions.yaml
-          echo "Waiting for functions to be ready..."
-          kubectl wait --for=condition=Installed --timeout=300s function/crossplane-contrib-function-go-templating
-          kubectl wait --for=condition=Installed --timeout=300s function/crossplane-contrib-function-auto-ready
+      - name: Set up GCP provider
+        if: ${{ env.GCP_SA_KEY != '' }}
+        working-directory: dev-environment
+        run: task crossplane-gcp:setup
 
       - name: Install and test platform
+        working-directory: platform
         run: |
-          cd platform
           task install
           task test
 
@@ -114,9 +97,8 @@ jobs:
 
       - name: Clean up test resources
         if: always()
-        run: |
-          cd platform
-          task cleanup-test || true
+        working-directory: platform
+        run: task cleanup-test || true
 
       - name: Show cluster status
         if: always()
@@ -150,6 +132,5 @@ jobs:
 
       - name: Clean up cluster
         if: always()
-        run: |
-          cd dev-environment
-          task delete-cluster || true
+        working-directory: dev-environment
+        run: task kind:delete || true

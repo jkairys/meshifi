@@ -57,6 +57,12 @@ logs/
 .env.local
 .env.*.local
 
+# GCP Service Account Keys - NEVER commit these!
+*-sa-key.json
+*-key.json
+service-account*.json
+credentials.json
+
 # Build artifacts
 dist/
 build/

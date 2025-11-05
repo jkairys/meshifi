@@ -85,7 +85,7 @@ tasks:
   install-gcp-providers:
     desc: "Install upjet GCP provider for Crossplane from Upbound registry"
     silent: true
-    deps: [uninstall-gcp-provider]
+    deps: [deps, uninstall-gcp-provider]
     cmds:
       - |
         echo "🔧 Installing upjet GCP provider from Upbound registry..."
@@ -97,7 +97,8 @@ tasks:
         echo "⏳ Waiting for provider config resource CRD to be available..."
         kubectl wait --for=condition=Established --timeout=300s crd/providerconfigs.gcp.m.upbound.io
 
-        kubectl apply -f provider-config.yaml
+        echo "📋 Creating ProviderConfig with project ID: $GCP_PROJECT_ID..."
+        envsubst < provider-config.yaml | kubectl apply -f -
 
         echo "🔍 Checking provider config status..."
         kubectl get providerconfig.gcp.m.upbound.io/default -o yaml
@@ -186,10 +187,13 @@ tasks:
             --role="roles/resourcemanager.projectIamAdmin"
         fi
 
-        # Assign only projectIamAdmin, we'll assign the rest using Crossplane
+        # Assign required roles to service account for Crossplane operations
         echo "🔐 Assigning required roles to service account..."
         ROLES=(
           "roles/resourcemanager.projectIamAdmin"
+          "roles/bigquery.admin"
+          "roles/iam.serviceAccountAdmin"
+          "roles/iam.serviceAccountKeyAdmin"
         )
 
         for role in "${ROLES[@]}"; do
@@ -206,9 +210,10 @@ tasks:
           fi
         done
 
-        # Enable Cloud Resource Manager API
-        echo "🔧 Enabling Cloud Resource Manager API..."
+        # Enable required GCP APIs
+        echo "🔧 Enabling required GCP APIs..."
         gcloud services enable cloudresourcemanager.googleapis.com --project={{.GCP_PROJECT_ID}}
+        gcloud services enable iam.googleapis.com --project={{.GCP_PROJECT_ID}}
 
         # Check if service account already has keys in GCP
         echo "🔍 Checking if service account has existing keys in GCP..."
@@ -345,8 +350,8 @@ tasks:
           exit 1
         fi
 
-        # Create Kubernetes secret from the downloaded key
-        echo "🔑 Creating Kubernetes secret from GCP Secret Manager..."
+        # Create Kubernetes secret from the downloaded key in crossplane-system namespace
+        echo "🔑 Creating Kubernetes secret in crossplane-system namespace..."
         if ! kubectl create secret generic gcp-provider-creds \
           --from-file=credentials="$TEMP_KEY_FILE" \
           --namespace=crossplane-system \
@@ -355,29 +360,23 @@ tasks:
           exit 1
         fi
 
+        # Also create the secret in default namespace for resources created there
+        echo "🔑 Creating Kubernetes secret in default namespace..."
+        if ! kubectl create secret generic gcp-provider-creds \
+          --from-file=credentials="$TEMP_KEY_FILE" \
+          --namespace=default \
+          --dry-run=client -o yaml | kubectl apply -f -; then
+          echo "❌ Error: Failed to create Kubernetes secret in default namespace"
+          exit 1
+        fi
+
         # Clean up the temporary key file
         echo "🧹 Cleaning up temporary key file..."
         rm -f "$TEMP_KEY_FILE"
 
-        # Create ProviderConfig for GCP
-        echo "⚙️  Creating GCP ProviderConfig..."
-        cat > /tmp/gcp-providerconfig.yaml << EOF
-        apiVersion: gcp.upbound.io/v1beta1
-        kind: ProviderConfig
-        metadata:
-          name: default
-        spec:
-          projectID: $GCP_PROJECT_ID
-          credentials:
-            source: Secret
-            secretRef:
-              namespace: crossplane-system
-              name: gcp-provider-creds
-              key: credentials
-        EOF
-
-        kubectl apply -f /tmp/gcp-providerconfig.yaml
-        rm -f /tmp/gcp-providerconfig.yaml
+        # Note: ProviderConfig is created by install-gcp-providers task from provider-config.yaml
+        # The gcp.m.upbound.io/v1beta1 API version is used (namespaced)
+        # No need to create a separate cluster-scoped ProviderConfig here
 
         echo "✅ GCP provider configured successfully"
         echo "Project ID: $GCP_PROJECT_ID"

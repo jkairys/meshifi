@@ -19,13 +19,16 @@ includes:
   crossplane-gcp:
     taskfile: crossplane-gcp/Taskfile.yaml
     dir: crossplane-gcp
+  github:
+    taskfile: github/Taskfile.yaml
+    dir: github
   # meshifi: ./dev-environment/meshifi/Taskfile.yaml
 
 tasks:
   # Main Setup Tasks
   setup:
     desc: "Set up the development environment"
-    deps: [install-deps, create-cluster, install-crossplane]
+    deps: [install-deps, create-cluster, install-crossplane, setup-gcp]
     summary: |
       Complete development environment setup including:
       - Dependency installation
@@ -107,20 +110,8 @@ tasks:
   setup-gcp:
     desc: "Set up GCP provider for Crossplane"
     cmds:
-      - task: crossplane:setup-gcp
+      - task: crossplane-gcp:setup
     summary: "Install and configure GCP provider for Crossplane"
-
-  install-gcp-provider:
-    desc: "Install GCP provider only"
-    cmds:
-      - task: crossplane:install-gcp-provider
-    summary: "Install GCP provider for Crossplane"
-
-  configure-gcp-provider:
-    desc: "Configure GCP provider with credentials"
-    cmds:
-      - task: crossplane:configure-gcp-provider
-    summary: "Configure GCP provider with service account credentials"
 
   # Cleanup
   clean:

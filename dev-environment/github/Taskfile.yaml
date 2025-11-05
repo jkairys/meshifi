@@ -1,0 +1,234 @@
+version: "3"
+
+vars:
+  GITHUB_SERVICE_ACCOUNT_NAME: github
+  GITHUB_SERVICE_ACCOUNT_EMAIL: "{{.GITHUB_SERVICE_ACCOUNT_NAME}}@{{.GCP_PROJECT_ID}}.iam.gserviceaccount.com"
+  KEY_FILE: "./github-sa-key.json"
+
+tasks:
+  deps:
+    desc: "Check required variables are set"
+    requires:
+      vars: [GCP_PROJECT_ID]
+    summary: "Check required variables are set"
+    cmds:
+      - |
+        echo "🔍 Checking required variables are set..."
+        if [ -z "$GCP_PROJECT_ID" ]; then
+          echo "❌ Error: GCP_PROJECT_ID environment variable is not set"
+          echo "Please set it with: export GCP_PROJECT_ID=your-project-id"
+          exit 1
+        fi
+
+  create-service-account:
+    desc: "Create GitHub Actions service account for CI/CD"
+    silent: true
+    requires:
+      vars: [GCP_PROJECT_ID]
+    cmds:
+      - |
+        echo "🔧 Creating GitHub Actions service account..."
+
+        # Check if GCP_PROJECT_ID is set
+        if [ -z "$GCP_PROJECT_ID" ]; then
+          echo "❌ Error: GCP_PROJECT_ID environment variable is not set"
+          echo "Please set it with: export GCP_PROJECT_ID=your-project-id"
+          exit 1
+        fi
+
+        # Check if gcloud is installed and authenticated
+        if ! command -v gcloud &> /dev/null; then
+          echo "❌ Error: gcloud CLI is not installed"
+          echo "Please install it from: https://cloud.google.com/sdk/docs/install"
+          exit 1
+        fi
+
+        # Check if user is authenticated
+        if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+          echo "❌ Error: No active gcloud authentication found"
+          echo "Please run: gcloud auth login"
+          exit 1
+        fi
+
+        # Set the project
+        echo "🔧 Setting GCP project to $GCP_PROJECT_ID..."
+        gcloud config set project $GCP_PROJECT_ID
+
+        # Enable required GCP APIs
+        echo "🔧 Enabling required GCP APIs..."
+        gcloud services enable cloudresourcemanager.googleapis.com --project=$GCP_PROJECT_ID
+        gcloud services enable iam.googleapis.com --project=$GCP_PROJECT_ID
+        gcloud services enable secretmanager.googleapis.com --project=$GCP_PROJECT_ID
+        gcloud services enable bigquery.googleapis.com --project=$GCP_PROJECT_ID
+
+        # Debug: Show variables
+        echo "🔍 Debug - GCP_PROJECT_ID: $GCP_PROJECT_ID"
+        echo "🔍 Debug - SERVICE_ACCOUNT_NAME: {{.GITHUB_SERVICE_ACCOUNT_NAME}}"
+        echo "🔍 Debug - SERVICE_ACCOUNT_EMAIL: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+
+        # Check if service account exists
+        echo "🔍 Checking if service account exists: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+        if gcloud iam service-accounts list --filter="email:{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}" --format="value(email)" | grep -q "^{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}$"; then
+          echo "✅ Service account already exists: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+        else
+          echo "🔧 Creating service account: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+          gcloud iam service-accounts create {{.GITHUB_SERVICE_ACCOUNT_NAME}} \
+            --display-name="GitHub Actions" \
+            --description="Service account for GitHub Actions CI/CD workflows"
+        fi
+
+        # Assign required roles to service account for GitHub Actions
+        echo "🔐 Assigning required roles to service account..."
+        ROLES=(
+          "roles/resourcemanager.projectIamAdmin"
+          "roles/bigquery.admin"
+          "roles/iam.serviceAccountAdmin"
+          "roles/iam.serviceAccountKeyAdmin"
+          "roles/secretmanager.admin"
+        )
+
+        for role in "${ROLES[@]}"; do
+          echo "  - Assigning role: $role"
+          if ! gcloud projects add-iam-policy-binding $GCP_PROJECT_ID \
+            --member="serviceAccount:{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}" \
+            --role="$role" \
+            --quiet; then
+            echo "⚠️  Warning: Failed to assign role $role to service account"
+            echo "This may be due to insufficient permissions or the role already being assigned"
+            echo "Continuing with remaining roles..."
+          else
+            echo "    ✅ Role assigned successfully"
+          fi
+        done
+
+        echo "✅ GitHub Actions service account created and configured"
+        echo "Service Account Email: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+    summary: "Create and configure GitHub Actions service account with necessary permissions"
+
+  create-key:
+    desc: "Create and download service account key for GitHub Actions"
+    silent: true
+    deps: [create-service-account]
+    requires:
+      vars: [GCP_PROJECT_ID]
+    cmds:
+      - |
+        echo "🔑 Creating service account key for GitHub Actions..."
+
+        # Check if key file already exists locally
+        if [ -f "{{.KEY_FILE}}" ]; then
+          echo "⚠️  Warning: Key file {{.KEY_FILE}} already exists"
+          echo "Please delete it or back it up before creating a new key"
+          exit 1
+        fi
+
+        # Create a new service account key
+        echo "🔑 Creating new service account key..."
+        if ! gcloud iam service-accounts keys create {{.KEY_FILE}} \
+          --iam-account={{.GITHUB_SERVICE_ACCOUNT_EMAIL}}; then
+          echo "❌ Error: Failed to create service account key"
+          exit 1
+        fi
+
+        # Verify key file was created
+        if [ ! -f "{{.KEY_FILE}}" ]; then
+          echo "❌ Error: Service account key file was not created"
+          exit 1
+        fi
+
+        echo "✅ Service account key created successfully"
+        echo ""
+        echo "📋 Next steps:"
+        echo "1. Add the key to GitHub Secrets:"
+        echo "   - Go to your GitHub repository → Settings → Secrets and variables → Actions"
+        echo "   - Click 'New repository secret'"
+        echo "   - Name: GCP_SA_KEY"
+        echo "   - Value: Copy the contents of {{.KEY_FILE}}"
+        echo ""
+        echo "2. To copy the key to clipboard (macOS):"
+        echo "   cat {{.KEY_FILE}} | pbcopy"
+        echo ""
+        echo "3. To copy the key to clipboard (Linux with xclip):"
+        echo "   cat {{.KEY_FILE}} | xclip -selection clipboard"
+        echo ""
+        echo "4. IMPORTANT: Delete the local key file after adding to GitHub:"
+        echo "   rm {{.KEY_FILE}}"
+        echo ""
+        echo "⚠️  Security Warning: Keep this key secure and never commit it to version control!"
+    summary: "Create and download service account key for GitHub Actions"
+
+  delete-key-file:
+    desc: "Delete local service account key file"
+    silent: true
+    cmds:
+      - |
+        if [ -f "{{.KEY_FILE}}" ]; then
+          echo "🗑️  Deleting local key file: {{.KEY_FILE}}"
+          rm -f "{{.KEY_FILE}}"
+          echo "✅ Key file deleted"
+        else
+          echo "ℹ️  Key file {{.KEY_FILE}} does not exist"
+        fi
+    summary: "Delete local service account key file for security"
+
+  setup:
+    desc: "Complete GitHub Actions service account setup"
+    silent: true
+    deps: [create-service-account, create-key]
+    summary: "Create service account and generate key for GitHub Actions"
+
+  delete-service-account:
+    desc: "Delete GitHub Actions service account"
+    silent: true
+    requires:
+      vars: [GCP_PROJECT_ID]
+    cmds:
+      - |
+        echo "🗑️  Deleting GitHub Actions service account..."
+
+        # Check if service account exists
+        if gcloud iam service-accounts list --filter="email:{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}" --format="value(email)" | grep -q "^{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}$"; then
+          echo "🔧 Deleting service account: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+          gcloud iam service-accounts delete {{.GITHUB_SERVICE_ACCOUNT_EMAIL}} --quiet
+          echo "✅ Service account deleted"
+        else
+          echo "ℹ️  Service account {{.GITHUB_SERVICE_ACCOUNT_EMAIL}} does not exist"
+        fi
+    summary: "Delete GitHub Actions service account from GCP"
+
+  info:
+    desc: "Show GitHub Actions service account information"
+    silent: true
+    requires:
+      vars: [GCP_PROJECT_ID]
+    cmds:
+      - |
+        echo "📋 GitHub Actions Service Account Information"
+        echo "==========================================="
+        echo "Project ID: $GCP_PROJECT_ID"
+        echo "Service Account Name: {{.GITHUB_SERVICE_ACCOUNT_NAME}}"
+        echo "Service Account Email: {{.GITHUB_SERVICE_ACCOUNT_EMAIL}}"
+        echo ""
+
+        # Check if service account exists
+        if gcloud iam service-accounts list --filter="email:{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}" --format="value(email)" | grep -q "^{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}$"; then
+          echo "✅ Service account exists"
+          echo ""
+          echo "🔑 Service Account Keys:"
+          gcloud iam service-accounts keys list --iam-account={{.GITHUB_SERVICE_ACCOUNT_EMAIL}}
+          echo ""
+          echo "🔐 IAM Policy Bindings:"
+          gcloud projects get-iam-policy $GCP_PROJECT_ID \
+            --flatten="bindings[].members" \
+            --filter="bindings.members:serviceAccount:{{.GITHUB_SERVICE_ACCOUNT_EMAIL}}" \
+            --format="table(bindings.role)"
+        else
+          echo "❌ Service account does not exist"
+          echo "Run 'task create-service-account' to create it"
+        fi
+    summary: "Show information about GitHub Actions service account"
+
+  help:
+    desc: "Show available GitHub Actions setup tasks"
+    cmds:
+      - task --list

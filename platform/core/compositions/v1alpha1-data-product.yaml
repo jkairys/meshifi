@@ -132,6 +132,7 @@ spec:
             ---
             {{- end }}
             {{- $first = false }}
+            {{- $friendlyName := printf "%s_%s" (replace "-" "_" $.observed.composite.resource.metadata.name) $datasetType }}
             apiVersion: bigquery.gcp.m.upbound.io/v1beta1
             kind: DatasetIAMMember
             metadata:
@@ -149,10 +150,9 @@ spec:
                 name: default
               forProvider:
                 project: meshifi-platform
-                datasetIdRef:
-                  name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}"
+                datasetId: {{ $friendlyName }}
                 role: roles/bigquery.dataEditor
-                member: serviceAccount:{{ $.observed.composite.resource.spec.serviceAccountEmail }}
+                member: serviceAccount:some-sa@meshifi-platform.iam.gserviceaccount.com
             {{- end }}
             {{- end }}
 
