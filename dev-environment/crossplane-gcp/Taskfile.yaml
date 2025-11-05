@@ -98,7 +98,7 @@ tasks:
         kubectl wait --for=condition=Established --timeout=300s crd/providerconfigs.gcp.m.upbound.io
 
         echo "📋 Creating ProviderConfig with project ID: $GCP_PROJECT_ID..."
-        envsubst < provider-config.yaml | kubectl apply -f -
+        sed "s/\${GCP_PROJECT_ID}/$GCP_PROJECT_ID/g" provider-config.yaml | kubectl apply -f -
 
         echo "🔍 Checking provider config status..."
         kubectl get providerconfig.gcp.m.upbound.io/default -o yaml
