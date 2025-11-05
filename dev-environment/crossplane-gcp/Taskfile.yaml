@@ -83,7 +83,7 @@ tasks:
     summary: "Uninstall existing GCP provider from the cluster"
 
   install-gcp-providers:
-    desc: "Install upjet GCP provider for Crossplane from Upbound registry"
+    desc: "Install upjet GCP provider for Crossplane from Upbound registry (without credentials)"
     silent: true
     deps: [deps, uninstall-gcp-provider]
     cmds:
@@ -97,20 +97,27 @@ tasks:
         echo "⏳ Waiting for provider config resource CRD to be available..."
         kubectl wait --for=condition=Established --timeout=300s crd/providerconfigs.gcp.m.upbound.io
 
-        echo "📋 Creating ProviderConfig with project ID: $GCP_PROJECT_ID..."
-        sed "s/\${GCP_PROJECT_ID}/$GCP_PROJECT_ID/g" provider-config.yaml | kubectl apply -f -
+        # Only create ProviderConfig if we have or will have credentials
+        # Otherwise, CRDs are available but resources won't be provisioned
+        if [ -n "$GCP_SA_KEY" ] || kubectl get secret gcp-provider-creds -n default &> /dev/null; then
+          echo "📋 Creating ProviderConfig with project ID: $GCP_PROJECT_ID..."
+          sed "s/\${GCP_PROJECT_ID}/$GCP_PROJECT_ID/g" provider-config.yaml | kubectl apply -f -
 
-        echo "🔍 Checking provider config status..."
-        kubectl get providerconfig.gcp.m.upbound.io/default -o yaml
+          echo "🔍 Checking provider config status..."
+          kubectl get providerconfig.gcp.m.upbound.io/default -o yaml
 
-        echo "🔍 Checking provider events..."
-        kubectl get events --field-selector involvedObject.name=upbound-provider-gcp-iam --sort-by='.lastTimestamp'
+          echo "🔍 Checking provider events..."
+          kubectl get events --field-selector involvedObject.name=upbound-provider-gcp-iam --sort-by='.lastTimestamp'
 
-        echo "⏳ Checking if GCP provider config is ready..."
-        # Note: upjet providers may not set Healthy condition on ProviderConfig
-        # Just verify the ProviderConfig exists and provider is running
-        kubectl get providerconfig.gcp.m.upbound.io/default
-        kubectl get pods -n crossplane-system | grep gcp
+          echo "⏳ Checking if GCP provider config is ready..."
+          # Note: upjet providers may not set Healthy condition on ProviderConfig
+          # Just verify the ProviderConfig exists and provider is running
+          kubectl get providerconfig.gcp.m.upbound.io/default
+          kubectl get pods -n crossplane-system | grep gcp
+        else
+          echo "ℹ️  No GCP credentials found (GCP_SA_KEY not set), skipping ProviderConfig creation"
+          echo "ℹ️  Providers are installed (CRDs available) but resources won't be provisioned in GCP"
+        fi
 
         echo "✅ upjet GCP provider is ready"
     summary: "Install upjet GCP provider for Crossplane from Upbound registry"
@@ -374,9 +381,12 @@ tasks:
         echo "🧹 Cleaning up temporary key file..."
         rm -f "$TEMP_KEY_FILE"
 
-        # Note: ProviderConfig is created by install-gcp-providers task from provider-config.yaml
-        # The gcp.m.upbound.io/v1beta1 API version is used (namespaced)
-        # No need to create a separate cluster-scoped ProviderConfig here
+        # Create or update ProviderConfig now that credentials are available
+        echo "📋 Creating ProviderConfig with project ID: $GCP_PROJECT_ID..."
+        sed "s/\${GCP_PROJECT_ID}/$GCP_PROJECT_ID/g" provider-config.yaml | kubectl apply -f -
+
+        echo "🔍 Verifying ProviderConfig..."
+        kubectl get providerconfig.gcp.m.upbound.io/default
 
         echo "✅ GCP provider configured successfully"
         echo "Project ID: $GCP_PROJECT_ID"
