@@ -59,10 +59,14 @@ jobs:
         working-directory: dev-environment
         run: task crossplane:install
 
-      - name: Set up GCP provider
+      - name: Install GCP providers
+        working-directory: dev-environment
+        run: task crossplane-gcp:install-gcp-providers
+
+      - name: Configure GCP provider
         if: ${{ env.GCP_SA_KEY != '' }}
         working-directory: dev-environment
-        run: task crossplane-gcp:setup
+        run: task crossplane-gcp:configure-gcp-provider
 
       - name: Install and test platform
         working-directory: platform

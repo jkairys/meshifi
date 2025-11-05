@@ -35,25 +35,27 @@ tasks:
       Sets up the complete development environment:
       - Creates Kind cluster
       - Installs Crossplane
-      - Sets up GCP provider (if GCP_SA_KEY environment variable is set)
+      - Installs GCP providers (for CRDs)
+      - Configures GCP provider with credentials (if GCP_SA_KEY is set)
     cmds:
       - echo "📦 Setting up development environment..."
       - cd dev-environment && task kind:create
       - cd dev-environment && task crossplane:install
-      - task: setup-gcp-if-available
+      - cd dev-environment && task crossplane-gcp:install-gcp-providers
+      - task: configure-gcp-if-available
       - echo "✅ Development environment ready!"
 
-  setup-gcp-if-available:
-    desc: "Set up GCP provider if credentials are available"
+  configure-gcp-if-available:
+    desc: "Configure GCP provider if credentials are available"
     silent: true
     cmds:
       - |
         if [ -n "$GCP_SA_KEY" ]; then
-          echo "🔐 GCP credentials found, setting up GCP provider..."
-          cd dev-environment && task crossplane-gcp:setup
+          echo "🔐 GCP credentials found, configuring GCP provider..."
+          cd dev-environment && task crossplane-gcp:configure-gcp-provider
         else
-          echo "ℹ️  No GCP credentials found (GCP_SA_KEY not set), skipping GCP provider setup"
-          echo "ℹ️  Resources will be created but not provisioned in GCP"
+          echo "ℹ️  No GCP credentials found (GCP_SA_KEY not set), skipping GCP provider configuration"
+          echo "ℹ️  Providers are installed (CRDs available) but resources won't be provisioned in GCP"
         fi
 
   test-platform:
