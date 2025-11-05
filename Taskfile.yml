@@ -3,14 +3,6 @@ version: "3"
 vars:
   GCP_PROJECT_ID: '{{.GCP_PROJECT_ID | default "meshifi-platform"}}'
 
-includes:
-  dev:
-    taskfile: dev-environment/Taskfile.yaml
-    dir: dev-environment
-  platform:
-    taskfile: platform/Taskfile.yml
-    dir: platform
-
 tasks:
   verify:
     desc: "Run complete verification workflow (creates env, installs platform, runs tests)"
@@ -46,8 +38,8 @@ tasks:
       - Sets up GCP provider (if GCP_SA_KEY environment variable is set)
     cmds:
       - echo "📦 Setting up development environment..."
-      - task: dev:kind:create
-      - task: dev:crossplane:install
+      - cd dev-environment && task kind:create
+      - cd dev-environment && task crossplane:install
       - task: setup-gcp-if-available
       - echo "✅ Development environment ready!"
 
@@ -194,7 +186,7 @@ tasks:
     cmds:
       - echo "🧹 Cleaning up development environment..."
       - task: cleanup-test
-      - task: dev:kind:delete
+      - cd dev-environment && task kind:delete
       - echo "✅ Development environment cleaned up!"
 
   # Convenience tasks
