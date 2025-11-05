@@ -55,6 +55,9 @@ jobs:
         working-directory: .
         run: task verify
 
+      - name: Cleanup
+        run: task cleanup-test || true
+
       # - name: Debug test failure
       #   if: failure()
       #   run: |
