@@ -51,88 +51,69 @@ jobs:
         if: ${{ env.GCP_SA_KEY != '' }}
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Create Kind cluster
-        working-directory: dev-environment
-        run: task kind:create
+      - name: Verify
+        working-directory: .
+        run: task verify
 
-      - name: Install Crossplane
-        working-directory: dev-environment
-        run: task crossplane:install
+      # - name: Debug test failure
+      #   if: failure()
+      #   run: |
+      #     echo "=== Test failed - debugging information ==="
+      #     echo "=== DataDomain Status ==="
+      #     kubectl get datadomain example-domain -o yaml || true
+      #     echo ""
+      #     echo "=== DataDomain Events ==="
+      #     kubectl get events --field-selector involvedObject.name=example-domain --sort-by='.lastTimestamp' || true
+      #     echo ""
+      #     echo "=== DataProduct Status ==="
+      #     kubectl get dataproduct sales-data -o yaml || true
+      #     echo ""
+      #     echo "=== DataProduct Events ==="
+      #     kubectl get events --field-selector involvedObject.name=sales-data --sort-by='.lastTimestamp' || true
+      #     echo ""
+      #     echo "=== Crossplane Compositions ==="
+      #     kubectl get compositions || true
+      #     echo ""
+      #     echo "=== Crossplane XRDs ==="
+      #     kubectl get xrds || true
+      #     echo ""
+      #     echo "=== All Crossplane Resources ==="
+      #     kubectl get managed,composite,composition -A || true
 
-      - name: Install GCP providers
-        working-directory: dev-environment
-        run: task crossplane-gcp:install-gcp-providers
+      # - name: Clean up test resources
+      #   if: always()
+      #   working-directory: platform
+      #   run: task cleanup-test || true
 
-      - name: Configure GCP provider
-        if: ${{ env.GCP_SA_KEY != '' }}
-        working-directory: dev-environment
-        run: task crossplane-gcp:configure-gcp-provider
-
-      - name: Install and test platform
-        working-directory: platform
-        run: |
-          task install
-          task test
-
-      - name: Debug test failure
-        if: failure()
-        run: |
-          echo "=== Test failed - debugging information ==="
-          echo "=== DataDomain Status ==="
-          kubectl get datadomain example-domain -o yaml || true
-          echo ""
-          echo "=== DataDomain Events ==="
-          kubectl get events --field-selector involvedObject.name=example-domain --sort-by='.lastTimestamp' || true
-          echo ""
-          echo "=== DataProduct Status ==="
-          kubectl get dataproduct sales-data -o yaml || true
-          echo ""
-          echo "=== DataProduct Events ==="
-          kubectl get events --field-selector involvedObject.name=sales-data --sort-by='.lastTimestamp' || true
-          echo ""
-          echo "=== Crossplane Compositions ==="
-          kubectl get compositions || true
-          echo ""
-          echo "=== Crossplane XRDs ==="
-          kubectl get xrds || true
-          echo ""
-          echo "=== All Crossplane Resources ==="
-          kubectl get managed,composite,composition -A || true
-
-      - name: Clean up test resources
-        if: always()
-        working-directory: platform
-        run: task cleanup-test || true
-
-      - name: Show cluster status
-        if: always()
-        run: |
-          echo "=== Cluster Status ==="
-          kubectl get nodes
-          echo ""
-          echo "=== Crossplane Status ==="
-          kubectl get pods -n crossplane-system || true
-          echo ""
-          echo "=== Meshifi Resources ==="
-          kubectl get datadomains,dataproducts || true
-          echo ""
-          echo "=== DataDomain Details ==="
-          kubectl describe datadomain example-domain || true
-          echo ""
-          echo "=== DataProduct Details ==="
-          kubectl describe dataproduct sales-data || true
-          echo ""
-          echo "=== ConfigMaps ==="
-          kubectl get configmaps -l meshifi.io/type || true
-          echo ""
-          echo "=== All ConfigMaps ==="
-          kubectl get configmaps || true
-          echo ""
-          echo "=== Crossplane Events ==="
-          kubectl get events --sort-by='.lastTimestamp' -A || true
-          echo ""
-          echo "=== All Namespaces ==="
-          kubectl get namespaces
+      # - name: Show cluster status
+      #   if: always()
+      #   run: |
+      #     echo "=== Cluster Status ==="
+      #     kubectl get nodes
+      #     echo ""
+      #     echo "=== Crossplane Status ==="
+      #     kubectl get pods -n crossplane-system || true
+      #     echo ""
+      #     echo "=== Meshifi Resources ==="
+      #     kubectl get datadomains,dataproducts || true
+      #     echo ""
+      #     echo "=== DataDomain Details ==="
+      #     kubectl describe datadomain example-domain || true
+      #     echo ""
+      #     echo "=== DataProduct Details ==="
+      #     kubectl describe dataproduct sales-data || true
+      #     echo ""
+      #     echo "=== ConfigMaps ==="
+      #     kubectl get configmaps -l meshifi.io/type || true
+      #     echo ""
+      #     echo "=== All ConfigMaps ==="
+      #     kubectl get configmaps || true
+      #     echo ""
+      #     echo "=== Crossplane Events ==="
+      #     kubectl get events --sort-by='.lastTimestamp' -A || true
+      #     echo ""
+      #     echo "=== All Namespaces ==="
+      #     kubectl get namespaces
 
       - name: Clean up cluster
         if: always()
