@@ -56,6 +56,24 @@ Meshifi aims to:
 
 > **Note:** Meshifi is in early development. Please see the roadmap for planned features and contribute via issues or pull requests!
 
+### Quick Start - Run Full Verification
+
+The fastest way to test Meshifi is to run the complete verification workflow:
+
+```bash
+task verify
+```
+
+This single command will:
+- Create a Kind cluster
+- Install Crossplane with required functions
+- Install the Meshifi platform (XRDs and compositions)
+- Deploy and test example DataDomain and DataProduct resources
+- Show cluster status and validation results
+- Clean up test resources (but keeps the cluster running)
+
+After verification completes, you can experiment with the platform or run `task cleanup` to remove everything.
+
 ### Golden Path - Complete Setup
 
 Follow these steps to get a fully functional Meshifi development environment:
@@ -120,24 +138,39 @@ If you prefer to install components separately:
    task install
    ```
 
+### Available Commands
+
+From the root directory, you can run:
+
+```bash
+task --list          # Show all available tasks
+task verify          # Run complete verification workflow
+task setup-dev       # Set up dev environment (cluster + Crossplane)
+task test-platform   # Install and test the platform
+task show-status     # Show cluster and platform status
+task debug           # Show detailed debug information
+task cleanup         # Clean up environment (removes cluster)
+task install         # Install the Meshifi platform
+task install-samples # Install sample resources
+```
+
 ### Project Structure
 
 ```
 meshifi/
-├── dev-environment/          # Development environment setup
-│   ├── dependencies/         # Dependency management tasks
-│   ├── kind/                # Kind cluster management
-│   ├── crossplane/          # Crossplane installation tasks
-│   └── Taskfile.yaml        # Main dev environment orchestrator
-├── platform/                # Meshifi platform components
-│   ├── core/                # Core Crossplane package
-│   │   ├── xrd.yaml         # CompositeResourceDefinition
-│   │   ├── composition.yaml # Crossplane composition
-│   │   └── fn.yaml          # Function definitions
-│   ├── examples/            # Example configurations
-│   └── Taskfile.yml         # Platform management tasks
-├── docs/                    # Documentation
-└── README.md               # This file
+├── Taskfile.yml             # Root-level orchestration tasks
+├── dev-environment/         # Development environment setup
+│   ├── dependencies/        # Dependency management tasks
+│   ├── kind/               # Kind cluster management
+│   ├── crossplane/         # Crossplane installation tasks
+│   ├── crossplane-gcp/     # GCP provider setup
+│   └── Taskfile.yaml       # Dev environment orchestrator
+├── platform/               # Meshifi platform components
+│   ├── core/               # Core platform (XRDs, compositions, functions)
+│   ├── examples/           # Example configurations
+│   └── Taskfile.yml        # Platform management tasks
+├── docs/                   # Documentation
+└── README.md              # This file
 ```
 
 ### Development

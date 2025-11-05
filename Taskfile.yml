@@ -1,0 +1,219 @@
+version: "3"
+
+vars:
+  GCP_PROJECT_ID: '{{.GCP_PROJECT_ID | default "meshifi-platform"}}'
+
+includes:
+  dev:
+    taskfile: dev-environment/Taskfile.yaml
+    dir: dev-environment
+  platform:
+    taskfile: platform/Taskfile.yml
+    dir: platform
+
+tasks:
+  verify:
+    desc: "Run complete verification workflow (creates env, installs platform, runs tests)"
+    summary: |
+      Complete verification workflow that:
+      - Creates a Kind cluster
+      - Installs Crossplane
+      - Sets up GCP provider (if GCP_SA_KEY is set)
+      - Installs the Meshifi platform
+      - Installs and tests sample resources
+      - Shows cluster status
+      - Cleans up test resources
+
+      This replicates the GitHub workflow locally.
+
+      Environment variables:
+        GCP_PROJECT_ID: GCP project ID (default: meshifi-platform)
+        GCP_SA_KEY: GCP service account key JSON (optional)
+    cmds:
+      - echo "🚀 Starting Meshifi verification workflow..."
+      - task: setup-dev
+      - task: test-platform
+      - defer: { task: cleanup-test }
+      - defer: { task: show-status }
+      - echo "✅ Verification workflow completed successfully!"
+
+  setup-dev:
+    desc: "Set up development environment (cluster + Crossplane)"
+    summary: |
+      Sets up the complete development environment:
+      - Creates Kind cluster
+      - Installs Crossplane
+      - Sets up GCP provider (if GCP_SA_KEY environment variable is set)
+    cmds:
+      - echo "📦 Setting up development environment..."
+      - task: dev:kind:create
+      - task: dev:crossplane:install
+      - task: setup-gcp-if-available
+      - echo "✅ Development environment ready!"
+
+  setup-gcp-if-available:
+    desc: "Set up GCP provider if credentials are available"
+    silent: true
+    cmds:
+      - |
+        if [ -n "$GCP_SA_KEY" ]; then
+          echo "🔐 GCP credentials found, setting up GCP provider..."
+          cd dev-environment && task crossplane-gcp:setup
+        else
+          echo "ℹ️  No GCP credentials found (GCP_SA_KEY not set), skipping GCP provider setup"
+          echo "ℹ️  Resources will be created but not provisioned in GCP"
+        fi
+
+  test-platform:
+    desc: "Install and test the Meshifi platform with samples"
+    summary: |
+      Installs the Meshifi platform and runs smoke tests:
+      - Installs Crossplane functions
+      - Installs platform XRDs and compositions
+      - Creates example DataDomain and DataProduct
+      - Waits for resources to be ready
+      - Validates resource status
+    cmds:
+      - echo "🧪 Installing and testing Meshifi platform..."
+      - cd platform && task install
+      - cd platform && task test
+      - echo "✅ Platform tests passed!"
+
+  cleanup-test:
+    desc: "Clean up test resources"
+    cmds:
+      - echo "🧹 Cleaning up test resources..."
+      - cd platform && task cleanup-test || true
+      - echo "✅ Test resources cleaned up"
+
+  show-status:
+    desc: "Show cluster and platform status"
+    summary: |
+      Displays comprehensive status information:
+      - Cluster nodes
+      - Crossplane system pods
+      - Meshifi resources (DataDomains, DataProducts)
+      - Resource details and events
+      - ConfigMaps
+    cmds:
+      - |
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "📊 Cluster and Platform Status"
+        echo "═══════════════════════════════════════════════════════════"
+        echo ""
+
+        echo "🔍 Cluster Nodes:"
+        kubectl get nodes
+        echo ""
+
+        echo "🔍 Crossplane System Pods:"
+        kubectl get pods -n crossplane-system || true
+        echo ""
+
+        echo "🔍 Meshifi Resources:"
+        kubectl get datadomains,dataproducts || true
+        echo ""
+
+        echo "🔍 DataDomain Details:"
+        kubectl describe datadomain example-domain 2>/dev/null || echo "No example-domain found"
+        echo ""
+
+        echo "🔍 DataProduct Details:"
+        kubectl describe dataproduct sales-data 2>/dev/null || echo "No sales-data found"
+        echo ""
+
+        echo "🔍 ConfigMaps (Meshifi):"
+        kubectl get configmaps -l meshifi.io/type 2>/dev/null || echo "No Meshifi ConfigMaps found"
+        echo ""
+
+        echo "🔍 All ConfigMaps:"
+        kubectl get configmaps
+        echo ""
+
+        echo "🔍 Recent Events:"
+        kubectl get events --sort-by='.lastTimestamp' | tail -20
+        echo ""
+
+        echo "═══════════════════════════════════════════════════════════"
+
+  debug:
+    desc: "Show detailed debug information for troubleshooting"
+    summary: |
+      Displays detailed debugging information when tests fail:
+      - DataDomain and DataProduct YAML manifests
+      - Events for specific resources
+      - Crossplane compositions and XRDs
+      - All managed and composite resources
+    cmds:
+      - |
+        echo ""
+        echo "═══════════════════════════════════════════════════════════"
+        echo "🐛 Debug Information"
+        echo "═══════════════════════════════════════════════════════════"
+        echo ""
+
+        echo "📋 DataDomain Status:"
+        kubectl get datadomain example-domain -o yaml 2>/dev/null || echo "No example-domain found"
+        echo ""
+
+        echo "📋 DataDomain Events:"
+        kubectl get events --field-selector involvedObject.name=example-domain --sort-by='.lastTimestamp' 2>/dev/null || true
+        echo ""
+
+        echo "📋 DataProduct Status:"
+        kubectl get dataproduct sales-data -o yaml 2>/dev/null || echo "No sales-data found"
+        echo ""
+
+        echo "📋 DataProduct Events:"
+        kubectl get events --field-selector involvedObject.name=sales-data --sort-by='.lastTimestamp' 2>/dev/null || true
+        echo ""
+
+        echo "📋 Crossplane Compositions:"
+        kubectl get compositions || true
+        echo ""
+
+        echo "📋 Crossplane XRDs:"
+        kubectl get xrds || true
+        echo ""
+
+        echo "📋 All Crossplane Resources:"
+        kubectl get managed,composite,composition -A || true
+        echo ""
+
+        echo "═══════════════════════════════════════════════════════════"
+
+  cleanup:
+    desc: "Clean up development environment (removes cluster)"
+    summary: |
+      Complete cleanup of the development environment:
+      - Removes test resources
+      - Deletes the Kind cluster
+
+      Note: This will destroy all local development resources.
+    cmds:
+      - echo "🧹 Cleaning up development environment..."
+      - task: cleanup-test
+      - task: dev:kind:delete
+      - echo "✅ Development environment cleaned up!"
+
+  # Convenience tasks
+  install:
+    desc: "Install the Meshifi platform"
+    cmds:
+      - cd platform && task install
+
+  install-samples:
+    desc: "Install sample DataDomain and DataProduct"
+    cmds:
+      - cd platform && task install-samples
+
+  uninstall:
+    desc: "Uninstall the Meshifi platform"
+    cmds:
+      - cd platform && task uninstall
+
+  help:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
