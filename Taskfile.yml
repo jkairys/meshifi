@@ -25,7 +25,7 @@ tasks:
       - echo "🚀 Starting Meshifi verification workflow..."
       - task: setup-dev
       - task: test-platform
-      - defer: { task: cleanup-test }
+      # - defer: { task: cleanup-test }
       - defer: { task: show-status }
       - echo "✅ Verification workflow completed successfully!"
 
@@ -41,7 +41,7 @@ tasks:
       - echo "📦 Setting up development environment..."
       - cd dev-environment && task kind:create
       - cd dev-environment && task crossplane:install
-      - cd dev-environment && task crossplane-gcp:install-gcp-providers
+      - cd dev-environment && task crossplane-gcp:setup
       - task: configure-gcp-if-available
       - echo "✅ Development environment ready!"
 

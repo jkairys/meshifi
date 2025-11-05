@@ -1,30 +1,10 @@
 version: "3"
 
 tasks:
-  install-functions:
-    desc: "Install Crossplane Functions required by Meshifi"
-    silent: true
-    cmds:
-      - |
-        echo "📦 Installing Crossplane Functions..."
-        kubectl apply -f core/functions.yaml
-
-        echo "⏳ Waiting for Functions to be installed..."
-        kubectl wait --for=condition=Installed --timeout=300s function.pkg.crossplane.io/crossplane-contrib-function-go-templating
-        kubectl wait --for=condition=Installed --timeout=300s function.pkg.crossplane.io/crossplane-contrib-function-auto-ready
-        kubectl wait --for=condition=Installed --timeout=300s function.pkg.crossplane.io/crossplane-contrib-function-extra-resources
-
-        echo "⏳ Waiting for Functions to be healthy..."
-        kubectl wait --for=condition=Healthy --timeout=300s function.pkg.crossplane.io/crossplane-contrib-function-go-templating
-        kubectl wait --for=condition=Healthy --timeout=300s function.pkg.crossplane.io/crossplane-contrib-function-auto-ready
-        kubectl wait --for=condition=Healthy --timeout=300s function.pkg.crossplane.io/crossplane-contrib-function-extra-resources
-
-        echo "✅ Crossplane Functions installed and ready!"
-
+  
   install:
     desc: "Install the Meshifi platform"
     silent: true
-    deps: [install-functions]
     cmds:
       - task: install-package
         vars:
@@ -50,6 +30,10 @@ tasks:
 
         # Note: We'll install the package components directly instead of using a package definition
         echo "ℹ️  Installing Meshifi ${PACKAGE} package components directly..."
+
+        # Apply the functions used by the package
+        echo "📋 Applying Functions..."
+        kubectl apply -f {{.PACKAGE}}/functions.yaml
 
         # Apply the CRDs (idempotent)
         echo "📋 Applying CompositeResourceDefinitions..."
@@ -123,7 +107,7 @@ tasks:
 
           echo "⏳ Waiting for DataProduct to be synced..."
           # Wait for the composite to be synced (but not necessarily ready)
-          kubectl wait --for=condition=Synced --timeout=60s dataproduct/sales-data || true
+          kubectl wait --for=condition=Synced --timeout=120s dataproduct/sales-data || true
 
           echo "✅ Compositions validated - resources created but not provisioned in GCP"
           echo "ℹ️  To fully provision resources, set GCP_SA_KEY environment variable"
