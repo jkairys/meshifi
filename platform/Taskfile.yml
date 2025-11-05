@@ -111,8 +111,8 @@ tasks:
       - |
         # Wait for resources to be ready
         echo "⏳ Waiting for resources to be ready..."
-        kubectl wait --for=condition=Ready --timeout=60s datadomain/example-domain
-        kubectl wait --for=condition=Ready --timeout=60s dataproduct/sales-data
+        kubectl wait --for=condition=Ready --timeout=120s datadomain/example-domain
+        kubectl wait --for=condition=Ready --timeout=120s dataproduct/sales-data
 
         # Show status
         echo "✅ Test resources created successfully!"
