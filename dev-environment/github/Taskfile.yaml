@@ -1,9 +1,14 @@
 version: "3"
 
+
 vars:
   GITHUB_SERVICE_ACCOUNT_NAME: github
   GITHUB_SERVICE_ACCOUNT_EMAIL: "{{.GITHUB_SERVICE_ACCOUNT_NAME}}@{{.GCP_PROJECT_ID}}.iam.gserviceaccount.com"
   KEY_FILE: "./github-sa-key.json"
+
+includes:
+  utils:
+    taskfile: ../utils/Taskfile.yaml
 
 tasks:
   deps:
@@ -36,20 +41,8 @@ tasks:
           exit 1
         fi
 
-        # Check if gcloud is installed and authenticated
-        if ! command -v gcloud &> /dev/null; then
-          echo "❌ Error: gcloud CLI is not installed"
-          echo "Please install it from: https://cloud.google.com/sdk/docs/install"
-          exit 1
-        fi
-
-        # Check if user is authenticated
-        if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
-          echo "❌ Error: No active gcloud authentication found"
-          echo "Please run: gcloud auth login"
-          exit 1
-        fi
-
+      - task: utils:check-gcloud-auth
+      - |
         # Set the project
         echo "🔧 Setting GCP project to $GCP_PROJECT_ID..."
         gcloud config set project $GCP_PROJECT_ID

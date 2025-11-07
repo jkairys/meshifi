@@ -1,12 +1,11 @@
 version: "3"
 
-vars:
-  CLUSTER_NAME: meshifi-dev
-  KIND_VERSION: v0.20.0
-  CROSSPLANE_VERSION: v2.0.2
-  KUBECTL_VERSION: v1.28.0
+dotenv: ['vars.yaml']
 
 includes:
+  utils:
+    taskfile: utils/Taskfile.yaml
+    dir: utils
   dependencies:
     taskfile: dependencies/Taskfile.yaml
     dir: dependencies
@@ -22,7 +21,9 @@ includes:
   github:
     taskfile: github/Taskfile.yaml
     dir: github
-  # meshifi: ./dev-environment/meshifi/Taskfile.yaml
+  platform:
+    taskfile: ../platform/Taskfile.yml
+    dir: ../platform
 
 tasks:
   # Main Setup Tasks
@@ -117,9 +118,33 @@ tasks:
   clean:
     desc: "Clean up development environment"
     cmds:
+      - task: clean-platform
       - task: crossplane:uninstall
       - task: kind:delete
-    summary: "Remove Meshifi package, Crossplane, and cluster"
+    summary: "Remove Meshifi platform, Crossplane, and cluster"
+
+  clean-platform:
+    desc: "Clean up Meshifi platform resources"
+    cmds:
+      - |
+        echo "🧹 Cleaning up Meshifi platform resources..."
+
+        # Check if cluster exists and is accessible
+        if ! kubectl cluster-info &> /dev/null; then
+          echo "ℹ️  No accessible Kubernetes cluster found. Skipping platform cleanup."
+          exit 0
+        fi
+
+        # Delete any sample/test resources first
+        echo "🗑️  Removing sample resources..."
+        kubectl delete datadomains --all --ignore-not-found=true --timeout=30s || true
+        kubectl delete dataproducts --all --ignore-not-found=true --timeout=30s || true
+
+        # Uninstall platform (XRDs and Compositions)
+        echo "🗑️  Uninstalling Meshifi platform..."
+      - task: platform:uninstall
+      - echo "✅ Platform cleanup completed"
+    summary: "Remove Meshifi platform XRDs, Compositions, and sample resources"
 
   force-clean:
     desc: "Force clean up everything including stuck containers"
