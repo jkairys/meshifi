@@ -1,0 +1,13 @@
+# Shared variables for all Taskfiles
+# This file defines default values that can be overridden by environment variables
+
+# Cluster configuration
+CLUSTER_NAME=meshifi-dev
+
+# Tool versions
+KIND_VERSION=v0.20.0
+KUBECTL_VERSION=v1.28.0
+CROSSPLANE_VERSION=v2.0.2
+
+# GCP configuration (can be overridden by setting GCP_PROJECT_ID environment variable)
+GCP_PROJECT_ID=meshifi-platform

@@ -1,10 +1,5 @@
 version: '3'
 
-vars:
-  KIND_VERSION: v0.20.0
-  CROSSPLANE_VERSION: v1.14.0
-  KUBECTL_VERSION: v1.28.0
-
 tasks:
   # Dependency Installation
   install:
@@ -68,7 +63,7 @@ tasks:
           # Install Crossplane CLI
           if ! command -v crossplane &> /dev/null; then
             echo "📦 Installing Crossplane CLI..."
-            curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-1.14/install.sh | sh
+            curl -sL "https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh" | sh
             sudo mv kubectl-crossplane /usr/local/bin/crossplane
           fi
           

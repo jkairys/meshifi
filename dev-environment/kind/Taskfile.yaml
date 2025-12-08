@@ -1,7 +1,5 @@
 version: '3'
 
-vars:
-  CLUSTER_NAME: meshifi-dev
 
 tasks:
   # Kind Cluster Management

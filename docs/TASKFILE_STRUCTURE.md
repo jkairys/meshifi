@@ -11,6 +11,9 @@ The project uses a modular Taskfile approach where separate taskfiles manage dif
 ```
 dev-environment/
 ├── Taskfile.yaml                   # Main orchestrator
+├── vars.yaml                       # Shared variables (versions, config)
+├── utils/
+│   └── Taskfile.yaml              # Shared utility tasks
 ├── dependencies/
 │   └── Taskfile.yaml              # Dependency management
 ├── kind/
@@ -18,13 +21,15 @@ dev-environment/
 │   └── kind-config.yaml           # Kind cluster configuration
 ├── crossplane/
 │   └── Taskfile.yaml              # Crossplane core management
-└── crossplane-gcp/
-    ├── Taskfile.yaml              # GCP provider management
-    ├── provider-config.yaml       # GCP provider configuration
-    └── providers/                 # GCP provider definitions
-        ├── bigquery.yaml
-        ├── cloudplatform.yaml
-        └── iam.yaml
+├── crossplane-gcp/
+│   ├── Taskfile.yaml              # GCP provider management
+│   ├── provider-config.yaml       # GCP provider configuration
+│   └── providers/                 # GCP provider definitions
+│       ├── bigquery.yaml
+│       ├── cloudplatform.yaml
+│       └── iam.yaml
+└── github/
+    └── Taskfile.yaml              # GitHub Actions setup
 
 platform/
 └── Taskfile.yml                   # Meshifi platform management
@@ -49,10 +54,72 @@ The main development environment Taskfile provides high-level commands that dele
 - `install-deps` - Install all required dependencies
 - `create-cluster` - Create Kind cluster
 - `install-crossplane` - Install Crossplane
-- `clean` - Clean up everything
+- `clean` - Clean up everything (platform → Crossplane → cluster)
+- `clean-platform` - Clean up Meshifi platform resources only
+- `force-clean` - Force remove all containers and clusters
 - `help` - Show all available tasks
 
-### 2. dev-environment/dependencies/Taskfile.yaml
+**Configuration:**
+
+- Uses `dotenv: ['vars.yaml']` to load shared variables
+- Includes platform, utils, and component Taskfiles
+
+### 2. dev-environment/vars.yaml (Shared Variables)
+
+Central configuration file that defines common variables used across all Taskfiles.
+
+**Variables Defined:**
+
+- `CLUSTER_NAME` - Kind cluster name (default: meshifi-dev)
+- `KIND_VERSION` - Kind version (default: v0.20.0)
+- `KUBECTL_VERSION` - kubectl version (default: v1.28.0)
+- `CROSSPLANE_VERSION` - Crossplane version (default: v2.0.2)
+- `GCP_PROJECT_ID` - GCP project ID (default: meshifi-platform)
+
+**Format:**
+
+Uses dotenv format (KEY=value) for Task compatibility:
+```bash
+CLUSTER_NAME=meshifi-dev
+CROSSPLANE_VERSION=v2.0.2
+GCP_PROJECT_ID=meshifi-platform
+```
+
+**Benefits:**
+
+- Single source of truth for versions
+- Easy to update versions across all Taskfiles
+- Can be overridden by environment variables
+- Prevents version conflicts between Taskfiles
+
+### 3. dev-environment/utils/Taskfile.yaml (Shared Utilities)
+
+Provides reusable utility tasks used by multiple Taskfiles to eliminate code duplication.
+
+**Tasks:**
+
+- `check-gcloud-auth` - Validate gcloud CLI installation and authentication
+- `check-cluster-accessible` - Verify Kubernetes cluster accessibility
+- `check-required-var` - Validate required environment variables are set
+- `enable-gcp-apis` - Enable required GCP APIs for a project
+- `assign-iam-roles` - Assign IAM roles to service accounts
+
+**Usage:**
+
+Tasks are accessed via the `utils:` prefix from any included Taskfile:
+```bash
+task utils:check-gcloud-auth
+task utils:check-cluster-accessible
+```
+
+**Benefits:**
+
+- Eliminates duplicate authentication checks
+- Consistent error messages across Taskfiles
+- Centralized GCP operations
+- Easy to maintain and update common logic
+
+### 4. dev-environment/dependencies/Taskfile.yaml
 
 Manages all external dependencies required for the project.
 
@@ -74,7 +141,7 @@ Manages all external dependencies required for the project.
 - Crossplane CLI
 - Task runner
 
-### 3. dev-environment/kind/Taskfile.yaml
+### 5. dev-environment/kind/Taskfile.yaml
 
 Handles Kind cluster lifecycle management.
 
@@ -92,7 +159,7 @@ Handles Kind cluster lifecycle management.
 - Clean deletion with container cleanup
 - Cluster status reporting
 
-### 4. dev-environment/crossplane/Taskfile.yaml
+### 6. dev-environment/crossplane/Taskfile.yaml
 
 Manages Crossplane core installation and configuration.
 
@@ -108,7 +175,7 @@ Manages Crossplane core installation and configuration.
 **Features:**
 
 - Helm-based installation with version management
-- Automatic dependency checking
+- Uses shared `CROSSPLANE_VERSION` from vars.yaml
 - CRD cleanup for version conflicts
 - Health checking and status monitoring
 - Debugging support with logs
@@ -116,9 +183,9 @@ Manages Crossplane core installation and configuration.
 
 **Variables:**
 
-- `CROSSPLANE_VERSION` - Crossplane version to install (default: v2.0.2)
+- Inherits `CROSSPLANE_VERSION` from vars.yaml (v2.0.2)
 
-### 5. dev-environment/crossplane-gcp/Taskfile.yaml
+### 7. dev-environment/crossplane-gcp/Taskfile.yaml
 
 Manages GCP provider installation and configuration for Crossplane.
 
@@ -141,20 +208,50 @@ Manages GCP provider installation and configuration for Crossplane.
 - Comprehensive debugging and status checking
 - Support for multiple GCP provider versions
 - Automatic cleanup of conflicting providers
+- Uses shared `utils:check-gcloud-auth` for authentication validation
 
 **Variables:**
 
 - `CROSSPLANE_SERVICE_ACCOUNT_EMAIL` - GCP service account email
 - `GCP_SECRET_NAME` - Name of the secret in GCP Secret Manager
-- `GCP_PROJECT_ID` - GCP project ID (required)
+- Inherits `GCP_PROJECT_ID` from vars.yaml (can be overridden)
 
 **Dependencies:**
 
-- Requires `GCP_PROJECT_ID` environment variable
+- Requires `GCP_PROJECT_ID` environment variable or vars.yaml default
 - Requires `gcloud` CLI to be installed and authenticated
 - Requires Crossplane to be installed first
+- Uses `utils:check-gcloud-auth` for validation
 
-### 6. platform/Taskfile.yml
+### 8. dev-environment/github/Taskfile.yaml
+
+Manages GitHub Actions service account setup for CI/CD workflows.
+
+**Tasks:**
+
+- `deps` - Check required variables are set
+- `create-service-account` - Create GitHub Actions service account
+- `create-key` - Create and download service account key
+- `delete-key-file` - Delete local key file
+- `setup` - Complete GitHub Actions setup
+- `delete-service-account` - Delete GitHub Actions service account
+- `info` - Show service account information
+
+**Features:**
+
+- Automated service account creation with proper IAM roles
+- Service account key management
+- Local key file handling
+- Uses shared `utils:check-gcloud-auth` for authentication validation
+
+**Variables:**
+
+- `GITHUB_SERVICE_ACCOUNT_NAME` - Service account name (default: github)
+- `GITHUB_SERVICE_ACCOUNT_EMAIL` - Computed service account email
+- `KEY_FILE` - Local key file path (default: ./github-sa-key.json)
+- Inherits `GCP_PROJECT_ID` from vars.yaml
+
+### 9. platform/Taskfile.yml
 
 Handles Meshifi platform installation and testing.
 
@@ -268,6 +365,58 @@ cd ../platform
 task --taskfile Taskfile.yml test
 ```
 
+### Cleanup Workflow
+
+The cleanup tasks follow a specific dependency order to ensure resources are properly removed:
+
+```bash
+# Complete cleanup (recommended)
+cd dev-environment
+task clean
+
+# This executes in order:
+# 1. clean-platform    - Removes platform XRDs, Compositions, and sample resources
+# 2. crossplane:uninstall - Removes Crossplane (and remaining CRDs)
+# 3. kind:delete       - Deletes the Kind cluster and containers
+```
+
+**Cleanup Order Details:**
+
+1. **Platform Cleanup First** (`clean-platform`):
+   - Deletes any DataDomain/DataProduct sample resources
+   - Removes Compositions (data-domain-composition, data-product-composition)
+   - Removes XRDs (datadomains.meshifi.io, dataproducts.meshifi.io)
+   - This prevents CRD deletion hangs by removing dependent resources first
+
+2. **Crossplane Uninstall** (`crossplane:uninstall`):
+   - Uninstalls Crossplane Helm release
+   - Deletes crossplane-system namespace
+   - Cleans up Crossplane CRDs
+   - Now succeeds because platform XRDs are already gone
+
+3. **Cluster Deletion** (`kind:delete`):
+   - Deletes the Kind cluster
+   - Removes any remaining Docker containers
+   - Cleans up Docker networks
+
+**Individual Cleanup Tasks:**
+
+```bash
+# Clean only platform resources (keeps Crossplane and cluster)
+task clean-platform
+
+# Force clean everything (aggressive, use if normal clean fails)
+task force-clean
+```
+
+**Why Order Matters:**
+
+The cleanup order is critical because:
+- Crossplane CRDs have finalizers that prevent deletion while resources using them exist
+- Deleting Crossplane before platform XRDs causes hangs on CRD cleanup
+- Platform XRDs must be deleted before Crossplane CRDs
+- Sample resources must be deleted before XRDs they depend on
+
 ## Benefits of This Structure
 
 ### 1. **Modularity**
@@ -332,6 +481,9 @@ The new structure provides better organization:
 4. **Document dependencies** - Use `deps` to clearly show task relationships
 5. **Provide summaries** - Use `summary` to explain what tasks do
 6. **Test independently** - Each sub-task file should work on its own
+7. **Use shared variables** - Update vars.yaml instead of duplicating version numbers
+8. **Use shared utilities** - Call `utils:` tasks instead of duplicating common checks
+9. **Follow cleanup order** - Always clean platform resources before infrastructure
 
 ## Troubleshooting
 

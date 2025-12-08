@@ -1,0 +1,110 @@
+version: '3'
+
+# Shared utility tasks for common checks and operations
+# Include this in your Taskfile with:
+#   includes:
+#     utils:
+#       taskfile: ../utils/Taskfile.yaml
+
+tasks:
+  # GCloud Authentication Check
+  check-gcloud-auth:
+    desc: "Check if gcloud is installed and authenticated"
+    silent: true
+    cmds:
+      - |
+        if ! command -v gcloud &> /dev/null; then
+          echo "❌ Error: gcloud CLI is not installed"
+          echo "   Please install the Google Cloud SDK:"
+          echo "   https://cloud.google.com/sdk/docs/install"
+          exit 1
+        fi
+
+        if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+          echo "❌ Error: No active gcloud authentication found"
+          echo "   Please run: gcloud auth login"
+          exit 1
+        fi
+
+        echo "✅ gcloud authentication is active"
+
+  # Cluster Accessibility Check
+  check-cluster-accessible:
+    desc: "Check if a Kubernetes cluster is accessible"
+    silent: true
+    cmds:
+      - |
+        if ! kubectl cluster-info &> /dev/null; then
+          echo "❌ Error: No accessible Kubernetes cluster found"
+          echo "   Please create a cluster first (task create-cluster)"
+          exit 1
+        fi
+        echo "✅ Kubernetes cluster is accessible"
+
+  # Check Required Environment Variable
+  check-required-var:
+    desc: "Check if a required environment variable is set"
+    silent: true
+    vars:
+      VAR_NAME: '{{.VAR_NAME}}'
+      VAR_VALUE: '{{.VAR_VALUE}}'
+    cmds:
+      - |
+        if [ -z "{{.VAR_VALUE}}" ]; then
+          echo "❌ Error: {{.VAR_NAME}} is required but not set"
+          echo "   Please set it: export {{.VAR_NAME}}=<value>"
+          exit 1
+        fi
+        echo "✅ {{.VAR_NAME}} is set to: {{.VAR_VALUE}}"
+
+  # Enable GCP APIs
+  enable-gcp-apis:
+    desc: "Enable required GCP APIs for a project"
+    silent: true
+    vars:
+      GCP_PROJECT_ID: '{{.GCP_PROJECT_ID}}'
+      APIS: '{{.APIS | default ""}}'
+    cmds:
+      - |
+        if [ -z "{{.GCP_PROJECT_ID}}" ]; then
+          echo "❌ Error: GCP_PROJECT_ID is required"
+          exit 1
+        fi
+
+        if [ -z "{{.APIS}}" ]; then
+          echo "❌ Error: APIS parameter is required (space-separated list)"
+          exit 1
+        fi
+
+        echo "🔧 Enabling GCP APIs for project {{.GCP_PROJECT_ID}}..."
+        for api in {{.APIS}}; do
+          echo "   Enabling $api..."
+          gcloud services enable "$api" --project={{.GCP_PROJECT_ID}} 2>&1 | grep -v "already enabled" || true
+        done
+        echo "✅ GCP APIs enabled"
+
+  # Assign IAM Roles to Service Account
+  assign-iam-roles:
+    desc: "Assign IAM roles to a service account"
+    silent: true
+    vars:
+      GCP_PROJECT_ID: '{{.GCP_PROJECT_ID}}'
+      SERVICE_ACCOUNT: '{{.SERVICE_ACCOUNT}}'
+      ROLES: '{{.ROLES | default ""}}'
+    cmds:
+      - |
+        if [ -z "{{.GCP_PROJECT_ID}}" ] || [ -z "{{.SERVICE_ACCOUNT}}" ] || [ -z "{{.ROLES}}" ]; then
+          echo "❌ Error: GCP_PROJECT_ID, SERVICE_ACCOUNT, and ROLES are required"
+          exit 1
+        fi
+
+        echo "🔧 Assigning IAM roles to {{.SERVICE_ACCOUNT}}..."
+        for role in {{.ROLES}}; do
+          echo "   Assigning $role..."
+          gcloud projects add-iam-policy-binding {{.GCP_PROJECT_ID}} \
+            --member="serviceAccount:{{.SERVICE_ACCOUNT}}" \
+            --role="$role" \
+            --condition=None \
+            --format=json > /dev/null 2>&1 || echo "   ⚠️  Warning: Failed to assign $role (may already exist)"
+        done
+        echo "✅ IAM roles assigned"

@@ -1,8 +1,5 @@
 version: "3"
 
-vars:
-  CROSSPLANE_VERSION: v2.0.2
-
 tasks:
   # Crossplane Installation
   install:

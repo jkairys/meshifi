@@ -81,21 +81,38 @@ kubectl get datadomains
 kubectl apply -f examples/data-product.yaml
 kubectl get dataproducts
 
-# Clean up everything
+# Clean up everything (in correct order: platform → Crossplane → cluster)
 cd ../dev-environment
 task clean
+
+# Or clean only platform resources (keeps Crossplane and cluster)
+task clean-platform
 ```
+
+**Note:** The `clean` task follows the correct dependency order:
+1. Cleans platform XRDs and Compositions first
+2. Uninstalls Crossplane (CRDs can now be deleted)
+3. Deletes Kind cluster and containers
 
 ### Taskfile Structure
 
 The project uses modular Taskfiles organized by concern:
 
-- `dev-environment/Taskfile.yaml`: Main orchestrator
+- `dev-environment/Taskfile.yaml`: Main orchestrator with dotenv for shared variables
+- `dev-environment/vars.yaml`: Shared variables (versions, cluster name, GCP project)
+- `dev-environment/utils/Taskfile.yaml`: Shared utility tasks (auth checks, etc.)
 - `dev-environment/dependencies/Taskfile.yaml`: Dependency management (Docker, Kind, kubectl, Helm)
 - `dev-environment/kind/Taskfile.yaml`: Kind cluster lifecycle
 - `dev-environment/crossplane/Taskfile.yaml`: Crossplane installation and management
 - `dev-environment/crossplane-gcp/Taskfile.yaml`: GCP provider configuration
+- `dev-environment/github/Taskfile.yaml`: GitHub Actions service account setup
 - `platform/Taskfile.yml`: Platform installation and testing
+
+**Shared Variables:**
+All Taskfiles use variables from `dev-environment/vars.yaml` to ensure consistency:
+- `CROSSPLANE_VERSION=v2.0.2`
+- `CLUSTER_NAME=meshifi-dev`
+- `GCP_PROJECT_ID=meshifi-platform` (can be overridden)
 
 Run `task --list` in any directory to see available tasks.
 
