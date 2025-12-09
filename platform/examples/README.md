@@ -4,27 +4,30 @@ This directory contains example configurations for testing and learning how to u
 
 ## Available Examples
 
-### Data Domain Example
+### Data Product Example
 
-- **data-domain.yaml**: A complete example of a DataDomain resource that demonstrates the basic structure and configuration options.
+- **data-product.yaml**: A complete example of a DataProduct resource that demonstrates BigQuery dataset provisioning.
 
 **Example Configuration:**
 
 ```yaml
 apiVersion: meshifi.io/v1alpha1
-kind: DataDomain
+kind: DataProduct
 metadata:
-  name: example-domain
+  name: sales-data
   namespace: default
 spec:
-  description: "Example data domain for demonstration"
+  id: sales-data
+  name: Sales Data
+  description: "Example data product for demonstration"
   owner: "data-team@example.com"
-  tags:
-    - "example"
-    - "demo"
-  metadata:
-    version: "1.0.0"
-    createdBy: "meshifi-examples"
+  gcp:
+    projectId: meshifi-platform
+    region: us-central1
+  datasets:
+    raw: true
+    cleaned: true
+    curated: true
 ```
 
 ## Testing Workflow
@@ -53,34 +56,37 @@ spec:
 1. **Apply the example**:
 
    ```bash
-   kubectl apply -f examples/data-domain.yaml
+   kubectl apply -f examples/data-product.yaml
    ```
 
 2. **Check the resource**:
 
    ```bash
-   kubectl get datadomains
-   kubectl describe datadomain example-domain
+   kubectl get dataproducts
+   kubectl describe dataproduct sales-data
    ```
 
 3. **Verify created resources**:
 
    ```bash
-   kubectl get configmaps -l meshifi.io/type
+   kubectl get datasets
+   kubectl get serviceaccounts -l meshifi.io/data-product
    ```
 
 4. **Clean up**:
    ```bash
-   kubectl delete -f examples/data-domain.yaml
+   kubectl delete -f examples/data-product.yaml
    ```
 
 ## Expected Outcomes
 
-When you apply the example DataDomain:
+When you apply the example DataProduct:
 
-1. **DataDomain Resource**: A custom resource of type `DataDomain` will be created
-2. **ConfigMaps**: The composition will create ConfigMaps with the `meshifi.io/type` label
-3. **Status**: The resource should reach a "Ready" state within 60 seconds
+1. **DataProduct Resource**: A custom resource of type `DataProduct` will be created
+2. **BigQuery Datasets**: The composition will create datasets for each enabled tier (raw, cleaned, curated)
+3. **Service Account**: A GCP service account will be created for the data product
+4. **IAM Bindings**: The service account will be granted access to the datasets
+5. **Status**: The resource should reach a "Ready" state within 60 seconds
 
 ## Troubleshooting
 
@@ -90,27 +96,24 @@ When you apply the example DataDomain:
 
 - Check Crossplane logs: `kubectl logs -n crossplane-system`
 - Verify composition is applied: `kubectl get compositions`
-- Check for errors: `kubectl describe datadomain example-domain`
+- Check for errors: `kubectl describe dataproduct sales-data`
 
-**ConfigMaps not created:**
+**Datasets not created:**
 
 - Ensure the composition is properly installed
-- Check the composition status: `kubectl describe composition v1alpha1-data-domain`
+- Check the composition status: `kubectl describe composition data-product-composition`
 - Verify the function is available: `kubectl get functions`
+
+**GCP resources not provisioned:**
+
+- Verify GCP provider is configured: `kubectl get providerconfigs`
+- Check provider status: `kubectl get providers`
+- Ensure credentials are set up correctly
 
 **Cleanup issues:**
 
-- Check for finalizers: `kubectl get datadomain example-domain -o yaml`
-- Force delete if needed: `kubectl delete datadomain example-domain --force --grace-period=0`
-
-## Future Examples
-
-Planned examples for future releases:
-
-- **Data Product Examples**: Complete data product configurations
-- **Multi-Domain Setup**: Cross-domain data mesh configurations
-- **Infrastructure Examples**: Examples with cloud provider integrations
-- **Advanced Configurations**: Complex scenarios with multiple resources
+- Check for finalizers: `kubectl get dataproduct sales-data -o yaml`
+- Force delete if needed: `kubectl delete dataproduct sales-data --force --grace-period=0`
 
 ## Contributing Examples
 

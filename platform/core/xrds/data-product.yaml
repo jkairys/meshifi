@@ -28,9 +28,22 @@ spec:
                 description:
                   type: string
                   description: "Description of the data product"
-                dataDomainRef:
+                owner:
                   type: string
-                  description: "Reference to the data domain this product belongs to (name of the DataDomain resource)"
+                  description: "Owner of the data product (email or team)"
+                gcp:
+                  type: object
+                  properties:
+                    projectId:
+                      type: string
+                      description: "GCP Project ID for provisioning resources"
+                    region:
+                      type: string
+                      description: "GCP region for resources"
+                      default: "us-central1"
+                  required:
+                    - projectId
+                  description: "GCP configuration for the data product"
                 datasets:
                   type: object
                   properties:
@@ -51,7 +64,8 @@ spec:
                 - id
                 - name
                 - description
-                - dataDomainRef
+                - owner
+                - gcp
             status:
               type: object
               properties:

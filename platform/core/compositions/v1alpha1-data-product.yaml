@@ -8,51 +8,6 @@ spec:
     kind: DataProduct
   mode: Pipeline
   pipeline:
-    - step: pull-extra-resources
-      functionRef:
-        name: crossplane-contrib-function-extra-resources
-      input:
-        apiVersion: extra-resources.fn.crossplane.io/v1beta1
-        kind: Input
-        spec:
-          extraResources:
-            - kind: DataDomain
-              into: DataDomain
-              apiVersion: meshifi.io/v1alpha1
-              type: Selector
-              selector:
-                minMatch: 1
-                maxMatch: 1
-                matchLabels:
-                  - key: meshifi.io/data-domain
-                    type: FromCompositeFieldPath
-                    valueFromFieldPath: spec.dataDomainRef
-
-    - step: validate-data-domain
-      functionRef:
-        name: crossplane-contrib-function-go-templating
-      input:
-        apiVersion: gotemplating.fn.crossplane.io/v1beta1
-        kind: GoTemplate
-        source: Inline
-        inline:
-          template: |-
-            {{- $DataDomain := index (index (index .context "apiextensions.crossplane.io/extra-resources") "DataDomain") 0 }}
-            apiVersion: v1
-            kind: ConfigMap
-            metadata:
-              name: "{{ .observed.composite.resource.metadata.name }}-validation"
-              namespace: "{{ .observed.composite.resource.metadata.namespace }}"
-              annotations:
-                gotemplating.fn.crossplane.io/composition-resource-name: validation-check
-                gotemplating.fn.crossplane.io/ready: "True"
-              labels:
-                meshifi.io/data-product: "{{ .observed.composite.resource.metadata.name }}"
-            data:
-              owner: {{ $DataDomain.spec.owner }}
-              status: "validated"
-              message: "Data domain reference validation passed"
-
     - step: create-datasets
       functionRef:
         name: crossplane-contrib-function-go-templating
@@ -62,6 +17,10 @@ spec:
         source: Inline
         inline:
           template: |-
+            {{- $projectId := .observed.composite.resource.spec.gcp.projectId }}
+            {{- $region := .observed.composite.resource.spec.gcp.region | default "us-central1" }}
+            {{- $productName := .observed.composite.resource.metadata.name }}
+            {{- $namespace := .observed.composite.resource.metadata.namespace }}
             {{- $datasetTypes := list "raw" "cleaned" "curated" }}
             {{- $first := true }}
             {{- range $datasetType := $datasetTypes }}
@@ -69,28 +28,25 @@ spec:
             {{- if not $first }}
             ---
             {{- end }}
-            {{- $friendlyName := printf "%s_%s" (replace "-" "_" $.observed.composite.resource.metadata.name) $datasetType }}
+            {{- $datasetId := printf "%s_%s" (replace "-" "_" $productName) $datasetType }}
             apiVersion: bigquery.gcp.m.upbound.io/v1beta1
             kind: Dataset
             metadata:
-              name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}"
-              namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
+              name: "{{ $productName }}-{{ $datasetType }}"
+              namespace: "{{ $namespace }}"
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: dataset-{{ $datasetType }}
-                crossplane.io/external-name: "{{ $friendlyName }}"
-                # gotemplating.fn.crossplane.io/ready: "True"
+                crossplane.io/external-name: "{{ $datasetId }}"
               labels:
-                example.crossplane.io/app: "{{ $.observed.composite.resource.metadata.name }}"
-                meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
-                meshifi.io/data-domain: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
+                meshifi.io/data-product: "{{ $productName }}"
             spec:
               providerConfigRef:
                 kind: ProviderConfig
                 name: default
               forProvider:
-                project: meshifi-platform
-                location: australia-southeast1
-                friendlyName: {{ $friendlyName }}
+                project: {{ $projectId }}
+                location: {{ $region }}
+                friendlyName: {{ $datasetId }}
             {{- $first = false }}
             {{- end }}
             {{- end }}
@@ -104,21 +60,26 @@ spec:
         source: Inline
         inline:
           template: |-
-            {{- $serviceAccountName := printf "%s-sa" (replace "_" "-" $.observed.composite.resource.metadata.name) }}
+            {{- $projectId := .observed.composite.resource.spec.gcp.projectId }}
+            {{- $productName := .observed.composite.resource.metadata.name }}
+            {{- $namespace := .observed.composite.resource.metadata.namespace }}
+            {{- $saName := printf "%s-sa" (replace "_" "-" $productName) }}
+            {{- $saEmail := printf "%s@%s.iam.gserviceaccount.com" $saName $projectId }}
             apiVersion: cloudplatform.gcp.m.upbound.io/v1beta1
             kind: ServiceAccount
             metadata:
-              name: some-sa
-              namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
+              name: {{ $saName }}
+              namespace: "{{ $namespace }}"
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: data-product-sa
+                crossplane.io/external-name: "{{ $saName }}"
                 gotemplating.fn.crossplane.io/ready: "True"
               labels:
-                meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
+                meshifi.io/data-product: "{{ $productName }}"
             spec:
               forProvider:
-                project: meshifi-platform
-                description: "Service account for data product {{ $.observed.composite.resource.metadata.name }}"
+                project: {{ $projectId }}
+                description: "Service account for data product {{ $productName }}"
               providerConfigRef:
                 name: default
                 kind: ProviderConfig
@@ -132,27 +93,25 @@ spec:
             ---
             {{- end }}
             {{- $first = false }}
-            {{- $friendlyName := printf "%s_%s" (replace "-" "_" $.observed.composite.resource.metadata.name) $datasetType }}
+            {{- $datasetId := printf "%s_%s" (replace "-" "_" $productName) $datasetType }}
             apiVersion: bigquery.gcp.m.upbound.io/v1beta1
             kind: DatasetIAMMember
             metadata:
-              name: "{{ $.observed.composite.resource.metadata.name }}-{{ $datasetType }}-iam"
-              namespace: "{{ $.observed.composite.resource.metadata.namespace }}"
+              name: "{{ $productName }}-{{ $datasetType }}-iam"
+              namespace: "{{ $namespace }}"
               annotations:
                 gotemplating.fn.crossplane.io/composition-resource-name: dataset-{{ $datasetType }}-iam
               labels:
-                example.crossplane.io/app: "{{ $.observed.composite.resource.metadata.name }}"
-                meshifi.io/data-product: "{{ $.observed.composite.resource.metadata.name }}"
-                meshifi.io/data-domain: "{{ $.observed.composite.resource.spec.dataDomainRef }}"
+                meshifi.io/data-product: "{{ $productName }}"
             spec:
               providerConfigRef:
                 kind: ProviderConfig
                 name: default
               forProvider:
-                project: meshifi-platform
-                datasetId: {{ $friendlyName }}
+                project: {{ $projectId }}
+                datasetId: {{ $datasetId }}
                 role: roles/bigquery.dataEditor
-                member: serviceAccount:some-sa@meshifi-platform.iam.gserviceaccount.com
+                member: serviceAccount:{{ $saEmail }}
             {{- end }}
             {{- end }}
 

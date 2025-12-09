@@ -7,7 +7,10 @@ spec:
   id: sales-data
   name: Sales Data
   description: "Example data product for demonstration"
-  dataDomainRef: "example-domain"
+  owner: "data-team@example.com"
+  gcp:
+    projectId: meshifi-platform
+    region: us-central1
   datasets:
     raw: true
     cleaned: true
